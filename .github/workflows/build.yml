@@ -1,0 +1,51 @@
+name: Build GoldPay APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Write secrets to local.properties
+        env:
+          TERMII_BASE_URL: ${{ secrets.TERMII_BASE_URL }}
+          TERMII_API_KEY: ${{ secrets.TERMII_API_KEY }}
+          TERMII_SENDER_ID: ${{ secrets.TERMII_SENDER_ID }}
+          JSONBIN_MASTER_KEY: ${{ secrets.JSONBIN_MASTER_KEY }}
+          JSONBIN_BIN_ID: ${{ secrets.JSONBIN_BIN_ID }}
+          PAYSTACK_DEFAULT_SECRET: ${{ secrets.PAYSTACK_DEFAULT_SECRET }}
+        run: |
+          echo "TERMII_BASE_URL=${TERMII_BASE_URL}" >> local.properties
+          echo "TERMII_API_KEY=${TERMII_API_KEY}" >> local.properties
+          echo "TERMII_SENDER_ID=${TERMII_SENDER_ID}" >> local.properties
+          echo "JSONBIN_MASTER_KEY=${JSONBIN_MASTER_KEY}" >> local.properties
+          echo "JSONBIN_BIN_ID=${JSONBIN_BIN_ID}" >> local.properties
+          echo "PAYSTACK_DEFAULT_SECRET=${PAYSTACK_DEFAULT_SECRET}" >> local.properties
+
+      - name: Build with Gradle (retry)
+        uses: nick-fields/retry@v2
+        with:
+          timeout_minutes: 20
+          max_attempts: 3
+          retry_on: error
+          command: ./gradlew assembleRelease --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: GoldPay-APK
+          path: app/build/outputs/apk/release/*.apk

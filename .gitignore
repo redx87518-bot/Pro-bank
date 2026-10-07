@@ -1,0 +1,11 @@
+/local.properties
+GoldPay.zip
+.gradle/
+build/
+*/build/
+captures/
+.externalNativeBuild/
+.cxx/
+.DS_Store
+*.iml
+.idea/

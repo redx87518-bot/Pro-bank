@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- gold rounded square -->
+    <path
+        android:fillColor="#D4AF37"
+        android:pathData="M8,0 L100,0 A8,8 0 0 1 108,8 L108,100 A8,8 0 0 1 100,108 L8,108 A8,8 0 0 1 0,100 L0,8 A8,8 0 0 1 8,0 Z" />
+    <!-- white coin/stack mark -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,22 A32,32 0 1 0 54,86 A32,32 0 1 0 54,22 Z M54,30 A24,24 0 1 1 54,78 A24,24 0 1 1 54,30 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M50,38 h8 v6 h4 v4 h-16 v4 h16 c0,4 -3,6 -8,6 l2,10 h-6 l-2,-10 h-4 v-4 h16 v-4 h-16 v-4 h10 z" />
+</vector>

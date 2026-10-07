@@ -1,0 +1,8 @@
+# Template — copy to local.properties (gitignored) and fill in real values.
+# CI: set these as GitHub repo secrets instead (.github/workflows/build.yml writes them).
+TERMII_BASE_URL=https://v4.api.termii.com
+TERMII_API_KEY=
+TERMII_SENDER_ID=
+JSONBIN_MASTER_KEY=
+JSONBIN_BIN_ID=
+PAYSTACK_DEFAULT_SECRET=
