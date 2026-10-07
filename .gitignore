@@ -1,5 +1,6 @@
-/local.properties
 GoldPay.zip
+*.apk
+GoldPay-APK/
 .gradle/
 build/
 */build/

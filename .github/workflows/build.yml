@@ -20,7 +20,9 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Write secrets to local.properties
+      # local.properties is committed with the demo keys. Repo secrets (if present)
+      # override them; empty/missing secrets are skipped so they never clobber values.
+      - name: Apply secret overrides to local.properties
         env:
           TERMII_BASE_URL: ${{ secrets.TERMII_BASE_URL }}
           TERMII_API_KEY: ${{ secrets.TERMII_API_KEY }}
@@ -29,12 +31,13 @@ jobs:
           JSONBIN_BIN_ID: ${{ secrets.JSONBIN_BIN_ID }}
           PAYSTACK_DEFAULT_SECRET: ${{ secrets.PAYSTACK_DEFAULT_SECRET }}
         run: |
-          echo "TERMII_BASE_URL=${TERMII_BASE_URL}" >> local.properties
-          echo "TERMII_API_KEY=${TERMII_API_KEY}" >> local.properties
-          echo "TERMII_SENDER_ID=${TERMII_SENDER_ID}" >> local.properties
-          echo "JSONBIN_MASTER_KEY=${JSONBIN_MASTER_KEY}" >> local.properties
-          echo "JSONBIN_BIN_ID=${JSONBIN_BIN_ID}" >> local.properties
-          echo "PAYSTACK_DEFAULT_SECRET=${PAYSTACK_DEFAULT_SECRET}" >> local.properties
+          touch local.properties
+          if [ -n "$TERMII_BASE_URL" ]; then echo "TERMII_BASE_URL=${TERMII_BASE_URL}" >> local.properties; fi
+          if [ -n "$TERMII_API_KEY" ]; then echo "TERMII_API_KEY=${TERMII_API_KEY}" >> local.properties; fi
+          if [ -n "$TERMII_SENDER_ID" ]; then echo "TERMII_SENDER_ID=${TERMII_SENDER_ID}" >> local.properties; fi
+          if [ -n "$JSONBIN_MASTER_KEY" ]; then echo "JSONBIN_MASTER_KEY=${JSONBIN_MASTER_KEY}" >> local.properties; fi
+          if [ -n "$JSONBIN_BIN_ID" ]; then echo "JSONBIN_BIN_ID=${JSONBIN_BIN_ID}" >> local.properties; fi
+          if [ -n "$PAYSTACK_DEFAULT_SECRET" ]; then echo "PAYSTACK_DEFAULT_SECRET=${PAYSTACK_DEFAULT_SECRET}" >> local.properties; fi
 
       - name: Build with Gradle (retry)
         uses: nick-fields/retry@v2
