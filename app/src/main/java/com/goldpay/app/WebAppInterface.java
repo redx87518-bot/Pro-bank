@@ -11,7 +11,6 @@ import android.webkit.JavascriptInterface;
 import com.goldpay.app.helpers.ApiHelper;
 import com.goldpay.app.helpers.SharedPrefsHelper;
 import com.goldpay.app.helpers.TermiiHelper;
-import com.goldpay.app.helpers.JsonBinHelper;
 import org.json.JSONObject;
 
 /**
@@ -19,8 +18,7 @@ import org.json.JSONObject;
  * Methods are invoked from script.js via GoldPayNative.<method>(...).
  *
  * In this OPay-style local-auth build the wallet backend is now on-device.
- * JsonBinHelper is kept only so legacy calls still compile — it no longer
- * requires JSON Bin keys.
+ * No JSON Bin integration remains in this build.
  */
 public class WebAppInterface {
 
@@ -33,31 +31,15 @@ public class WebAppInterface {
     // ---------- Storage (local session only) ----------
 
     @JavascriptInterface
-    public String binGet() {
-        return JsonBinHelper.get();
-    }
+    public String binGet() { return "{}"; }
 
     @JavascriptInterface
     public boolean binPut(final String body) {
-        final boolean[] ok = {false};
-        Thread t = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                ok[0] = JsonBinHelper.put(body) != null;
-            }
-        });
-        t.start();
-        try {
-            t.join(30000);
-        } catch (InterruptedException ignored) {
-        }
-        return ok[0];
+        return false;
     }
 
     @JavascriptInterface
-    public String binProbe() {
-        return "wallets";
-    }
+    public String binProbe() { return "none"; }
 
     // ---------- Credit-alert SMS (Termii, credit alerts only) ----------
 

@@ -19,7 +19,6 @@ public final class SharedPrefsHelper {
     private static final String K_BIO = "biometric_enabled";
     private static final String K_BENEFICIARIES = "beneficiaries";
     private static final String K_CONTACTS = "contacts";
-    private static final String K_ACCESS_KEY = "jsonbin_access_key";
 
     private SharedPrefsHelper() {}
 
@@ -70,12 +69,6 @@ public final class SharedPrefsHelper {
     public static void setContacts(String json) { prefs().edit().putString(K_CONTACTS, json).apply(); }
 
     public static String getContacts() { return prefs().getString(K_CONTACTS, "{}"); }
-
-    // ---- JSON Bin access key ----
-
-    public static void setJsonBinAccessKey(String key) { prefs().edit().putString(K_ACCESS_KEY, key).apply(); }
-
-    public static String getJsonBinAccessKey() { return prefs().getString(K_ACCESS_KEY, ""); }
 
     private static boolean isEmpty(String s) { return s == null || s.trim().isEmpty(); }
 }

@@ -1,12 +1,16 @@
-/* OPay-style demo — front-end logic. All HTTP still goes through the GoldPayNative bridge (Kotlin). */
 "use strict";
 
-/* ================= tiny helpers ================= */
+/* ================= helpers ================= */
 const $ = (id) => document.getElementById(id);
-const N = (n) => Number(n || 0).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const el = (sel, root) => (root || document).querySelector(sel);
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({
+  "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+})[c]);
 const uid = (p) => (p || "TXN") + "_" + Date.now();
-const nowParts = () => {
+const fmtN = (n) => Number(n || 0).toLocaleString("en-NG", {
+  minimumFractionDigits: 2, maximumFractionDigits: 2
+});
+const now = () => {
   const d = new Date();
   return {
     iso: d.toISOString(),
@@ -14,821 +18,994 @@ const nowParts = () => {
     time: d.toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" })
   };
 };
-
-/* ================= native bridge (browser-dev mock) ================= */
-const mockNative = {
-  binGet: () => localStorage.getItem("gp_bin") || JSON.stringify({ version: "2.1" }),
-  binPut: (b) => { localStorage.setItem("gp_bin", b); return true; },
-  binProbe: () => "wallets",
-  sendCreditSms: () => console.log("[mock SMS]"),
-  accountToE164: (a) => (a && a.startsWith("019") ? "+234" + a.slice(3) : ""),
-  getBanks: () => JSON.stringify([{ code: "058", name: "GTBank" }, { code: "044", name: "Access Bank" }, { code: "999992", name: "Moniepoint MFB" }]),
-  resolveAccountName: () => "unknown",
-  paystackKeySource: () => "",
-  setPaystackKey: () => {}, getPaystackKey: () => "", clearPaystackKey: () => {},
-  setTheme: (t) => localStorage.setItem("gp_theme", t),
-  getTheme: () => localStorage.getItem("gp_theme") || "light",
-  setBiometric: () => {}, getBiometric: () => false,
-  setBeneficiaries: (j) => localStorage.setItem("gp_ben", j), getBeneficiaries: () => localStorage.getItem("gp_ben") || "[]",
-  setContacts: () => {}, getContacts: () => "{}",
-  setSession: (p) => localStorage.setItem("gp_sess", p || ""),
-  getSession: () => localStorage.getItem("gp_sess"),
-  clearSession: () => localStorage.removeItem("gp_sess"),
-  getSenderId: () => "OPay", getAppVersion: () => "1.0-opay",
-  pickAvatar: () => {}, consumePickedAvatar: () => "",
-  toast: (m) => alert(m), haptic: () => {}
+const greeting = () => {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
 };
-const Native = typeof GoldPayNative !== "undefined" ? GoldPayNative : mockNative;
+const digitsOnly = (s) => String(s == null ? "" : s).replace(/\D/g, "");
+
+/* ================= native bridge ================= */
+const Native = (() => {
+  const hasNative = typeof GoldPayNative !== "undefined";
+  const n = hasNative ? GoldPayNative : null;
+
+  // browser-dev mirror so the web preview still works without the Kotlin bridge
+  const store = {
+    session: localStorage.getItem("opay_session") || "",
+    theme: localStorage.getItem("opay_theme") || "light",
+    biometric: localStorage.getItem("opay_biometric") === "1",
+    paystackKey: localStorage.getItem("opay_paystack_key") || "",
+    beneficiaries: localStorage.getItem("opay_beneficiaries") || "[]",
+    contacts: localStorage.getItem("opay_contacts") || "{}",
+  };
+
+  return {
+    getSession() {
+      if (n) return n.getSession();
+      return store.session;
+    },
+    setSession(phone) {
+      if (n) { n.setSession(phone); return; }
+      store.session = phone == null ? "" : String(phone);
+      if (store.session) localStorage.setItem("opay_session", store.session);
+      else localStorage.removeItem("opay_session");
+    },
+    clearSession() {
+      if (n) { n.clearSession(); return; }
+      store.session = "";
+      localStorage.removeItem("opay_session");
+    },
+    getTheme() { return n ? n.getTheme() : store.theme; },
+    setTheme(t) {
+      if (n) { n.setTheme(t); return; }
+      store.theme = t; localStorage.setItem("opay_theme", t);
+    },
+    getBiometric() { return n ? n.getBiometric() : store.biometric; },
+    setBiometric(on) {
+      if (n) { n.setBiometric(on); return; }
+      store.biometric = !!on; localStorage.setItem("opay_biometric", on ? "1" : "0");
+    },
+    getPaystackKey() { return n ? n.getPaystackKey() : store.paystackKey; },
+    setPaystackKey(k) {
+      if (n) { n.setPaystackKey(k); return; }
+      store.paystackKey = k || ""; localStorage.setItem("opay_paystack_key", store.paystackKey);
+    },
+    clearPaystackKey() {
+      if (n) { n.clearPaystackKey(); return; }
+      store.paystackKey = ""; localStorage.removeItem("opay_paystack_key");
+    },
+    paystackKeySource() { return n ? n.paystackKeySource() : (store.paystackKey ? "user" : ""); },
+    getBanks() { return n ? n.getBanks() : JSON.stringify([{ code: "058", name: "GTBank" }, { code: "044", name: "Access Bank" }, { code: "999992", name: "Moniepoint MFB" }]); },
+    resolveAccountName(acc, code) { return n ? n.resolveAccountName(acc, code) : "unknown"; },
+    sendCreditSms(...args) { if (n) { n.sendCreditSms(...args); return; } console.log("[mock SMS]", args[0]); },
+    accountToE164(a) { return n ? n.accountToE164(a) : (a && a.startsWith("019") ? "+234" + a.slice(3) : ""); },
+    pickAvatar() { if (n) { n.pickAvatar(); return; } if (typeof window !== "undefined" && window.onAvatarPicked) window.onAvatarPicked(); },
+    consumePickedAvatar() { return n ? n.consumePickedAvatar() : ""; },
+    toast(m) { if (n) { n.toast(m); return; } alert(m); },
+    haptic() { if (n) { n.haptic(); return; } },
+    getSenderId() { return n ? n.getSenderId() : "OPay"; },
+    getAppVersion() { return n ? n.getAppVersion() : "1.0"; },
+  };
+})();
+
+/* ================= wallet persistence ================= */
+const WALLET_STORE_KEY = "opay_wallet_v2";
+
+function walletStore() {
+  try { return JSON.parse(localStorage.getItem(WALLET_STORE_KEY) || "{}"); } catch (e) { return {}; }
+}
+function saveWalletStore(map) {
+  localStorage.setItem(WALLET_STORE_KEY, JSON.stringify(map));
+}
+function loadWalletByAccount(account) {
+  const store = walletStore();
+  return store[account] || null;
+}
+function saveWalletByAccount(account, w) {
+  const store = walletStore();
+  store[account] = w;
+  saveWalletStore(store);
+}
+function removeWalletByAccount(account) {
+  const store = walletStore();
+  delete store[account];
+  saveWalletStore(store);
+}
+function allWalletAccounts() {
+  return Object.keys(walletStore());
+}
 
 /* ================= state ================= */
 let ME = null;
-let hideBal = false;
-let banks = null;
-const GUEST_PHONE = "0198123456789";
-const GUEST_ACCOUNT = "0198123456789";
-const WELCOME_BONUS = 5000000;
+let hideBalance = false;
 
-/* guest wallet factory */
-function guestWallet() {
-  const t = nowParts();
-  return {
-    id: "guest",
-    fullname: "OPay Demo User",
-    phone: GUEST_PHONE,
-    email: "",
-    bvn: "2219" + GUEST_PHONE.slice(3, 10),
-    transactionPin: "0000",
-    accountNumber: GUEST_ACCOUNT,
-    walletAddress: "GP_GUEST_" + Date.now(),
-    balance: WELCOME_BONUS,
-    avatar: "",
-    cards: [],
-    notifications: [],
-    transactions: [{ id: uid("BONUS"), type: "received", amount: WELCOME_BONUS, description: "Welcome Bonus", date: t.iso, status: "successful" }],
-    isGuest: true
-  };
-}
+/* ================= screens ================= */
+const SCREENS = {
+  splash: "screen-splash",
+  onboarding: "screen-onboarding",
+  signup: "screen-signup",
+  signin: "screen-signin",
+  forgot: "screen-forgot",
+  terms: "screen-terms",
+  app: "screen-app",
+};
 
-/* ================= localStorage-backed persistence ================= */
-function loadLocalWallet(acc) {
-  try {
-    const rec = localStorage.getItem("gp_wallet_" + acc);
-    return rec ? JSON.parse(rec) : null;
-  } catch (e) {
-    return null;
+function showScreen(name) {
+  Object.values(SCREENS).forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle("active", id === name);
+  });
+  if (name === "app") {
+    document.body.classList.add("app-active");
+  } else {
+    document.body.classList.remove("app-active");
   }
 }
-function saveLocalWallet(w) {
-  const key = "gp_wallet_" + w.accountNumber;
-  localStorage.setItem(key, JSON.stringify(w));
-  Native.setSession(w.accountNumber);
-}
-function deleteLocalWallet(acc) {
-  localStorage.removeItem("gp_wallet_" + acc);
-  if (ME && ME.accountNumber === acc) ME = null;
-}
 
-/* ================= normalizeDest / find wallet (local only) ================= */
-function normalizeDest(input) {
-  const raw = String(input || "").trim();
-  if (raw.toUpperCase().startsWith("GP_")) return { walletAddress: raw };
-  const digits = raw.replace(/[^0-9]/g, "");
-  if (digits.length === 13 && digits.startsWith("019")) return { accountNumber: digits };
-  if (digits.length === 11 && digits.startsWith("0")) return { accountNumber: "019" + digits.slice(1) };
-  if (digits.length === 10) return { accountNumber: "019" + digits };
-  return null;
-}
-function findLocalWallet(ref) {
-  const acc = ref.accountNumber && ref.accountNumber.startsWith("019") ? ref.accountNumber : null;
-  if (acc) {
-    const w = loadLocalWallet(acc);
-    if (w) return w;
-  }
-  if (ref.walletAddress) {
-    const keys = Object.keys(localStorage).filter(k => k.indexOf("gp_wallet_") === 0);
-    for (const k of keys) {
-      try {
-        const w = JSON.parse(localStorage.getItem(k));
-        if (w && (w.walletAddress || "").toLowerCase() === ref.walletAddress.toLowerCase()) return w;
-      } catch (e) {}
-    }
-  }
-  /* fallback: treat guest wallet if ref matches guest account */
-  if (ref.accountNumber === GUEST_ACCOUNT) return guestWallet();
-  return null;
-}
+/* ================= onboarding ================= */
+let onboardIndex = 0;
+const TOTAL_ONBOARD = 3;
 
-/* ================= theme / screens / nav ================= */
+function renderOnboardDots() {
+  const dots = $("onboard-dots");
+  if (!dots) return;
+  dots.innerHTML = Array.from({ length: TOTAL_ONBOARD }, (_, i) =>
+    `<span class="${i === onboardIndex ? "active" : ""}"></span>`
+  ).join("");
+}
+function showOnboardStep() {
+  const steps = document.querySelectorAll("#screen-onboarding .onboard-step");
+  steps.forEach((s, i) => s.classList.toggle("hidden", i !== onboardIndex));
+  renderOnboardDots();
+  const next = $("onboard-next");
+  if (next) next.textContent = onboardIndex === TOTAL_ONBOARD - 1 ? "Get started" : "Next";
+}
+function onboardNext() {
+  if (onboardIndex < TOTAL_ONBOARD - 1) { onboardIndex++; showOnboardStep(); }
+  else { goToSignup(); }
+}
+function onboardPrev() {
+  if (onboardIndex > 0) { onboardIndex--; showOnboardStep(); }
+}
+function onboardSkip() { goToSignup(); }
+
+/* ================= navigation ================= */
+function goTo(name) { showScreen(name); }
+function goToSignup() { showScreen(SCREENS.signup); }
+function goToSignin() { showScreen(SCREENS.signin); }
+function goToOnboarding() { onboardIndex = 0; showScreen(SCREENS.onboarding); showOnboardStep(); }
+function goToApp() { showScreen(SCREENS.app); renderAppShell(); }
+
+/* ================= boot ================= */
+function boot() {
+  applyTheme(Native.getTheme());
+  const session = Native.getSession();
+  if (session && loadWalletByAccount(session)) {
+    ME = loadWalletByAccount(session);
+    Native.setSession(ME.accountNumber);
+    goToApp();
+    return;
+  }
+  // first-time user experiences onboarding before sign-up
+  goToOnboarding();
+}
+document.addEventListener("DOMContentLoaded", boot);
+
+/* ================= theme ================= */
 function applyTheme(t) {
   document.documentElement.setAttribute("data-theme", t);
   Native.setTheme(t);
-  $("#dark-toggle").checked = t === "dark";
-  /* only set on root, not the transient splash */
+  const box = $("settings-dark");
+  if (box) box.checked = t === "dark";
 }
-function showScreen(name) {
-  document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
-  $("#screen-" + name).classList.add("active");
-}
-function showView(name) {
-  document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
-  $("#view-" + name).classList.add("active");
-  document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.nav === name));
-  if (name === "send") ensureBanks();
-  if (name === "history") renderHistory();
-  if (name === "cards") renderCards();
-  if (name === "notifs") renderNotifs();
-  if (name === "profile") fillProfile();
-  if (name === "settings") fillSettings();
-  if (name === "invest") renderInvest();
-  if (name === "bills") switchBillsTab($("#view-bills .seg.active") ? $("#view-bills .seg.active").dataset.tab : "water");
-  if (name === "addmoney") switchAddMoneyTab($("#view-addmoney .seg.active") ? $("#view-addmoney .seg.active").dataset.tab : "self");
-  $("#views").scrollTop = 0;
-}
+$("settings-dark").addEventListener("change", (e) => applyTheme(e.target.checked ? "dark" : "light"));
 
-/* ================= auth ================= */
-function boot() {
-  applyTheme(Native.getTheme() || "light");
-  const sess = Native.getSession();
-  setTimeout(() => {
-    if (sess) {
-      const w = loadLocalWallet(sess);
-      if (w && !w.isGuest) {
-        ME = w;
-        enterApp();
-        return;
-      }
-    }
-    showScreen("auth");
-  }, 1400);
-}
+/* ================= onboarding wiring ================= */
+$("onboard-next").addEventListener("click", onboardNext);
+$("onboard-prev").addEventListener("click", onboardPrev);
+document.querySelectorAll('[data-goto="onboarding-skip"]').forEach((b) => b.addEventListener("click", onboardSkip));
 
-function authMode() {
-  const checked = document.querySelector('input[name="authMode"]:checked');
-  return checked ? checked.value : "guest";
-}
-function showAuthModeFields() {
-  const fields = $("#auth-account-fields");
-  if (authMode() === "account") {
-    fields.classList.remove("hidden");
+/* ================= sign-up ================= */
+$("signup-back").addEventListener("click", goToOnboarding);
+$("signup-submit").addEventListener("click", doSignup);
+$('a[data-goto="signin"]').forEach((a) => a.addEventListener("click", (e) => { e.preventDefault(); goToSignin(); }));
+$('a[data-goto="terms"]').forEach((a) => a.addEventListener("click", (e) => { e.preventDefault(); showScreen(SCREENS.terms); }));
+$("terms-agree").addEventListener("click", () => goToSignup());
+
+function doSignup() {
+  const name = $("signup-name").value.trim();
+  const phoneRaw = $("signup-phone").value;
+  const phone = digitsOnly(phoneRaw);
+  const pin = $("signup-password").value;
+  const pin2 = $("signup-password2").value;
+  const providedAccount = $("signup-account-number").value.trim();
+  const terms = $("signup-terms").checked;
+
+  if (!terms) { Native.toast("Please agree to the demo terms."); return; }
+  if (name.length < 2) { Native.toast("Enter your full name."); return; }
+  if (phone.length !== 10 || phone.startsWith("0")) { Native.toast("Phone must be 10 digits without leading 0."); return; }
+  if (!/^[0-9]{4}$/.test(pin)) { Native.toast("PIN must be 4 digits."); return; }
+  if (pin !== pin2) { Native.toast("PINs do not match."); return; }
+
+  let account;
+  if (providedAccount) {
+    const digits = digitsOnly(providedAccount);
+    if (!/^019[0-9]{10}$/.test(digits)) { Native.toast("Preferred account must be 13 digits starting with 019."); return; }
+    if (loadWalletByAccount(digits)) { Native.toast("That account number is already taken."); return; }
+    account = digits;
   } else {
-    fields.classList.add("hidden");
+    account = "019" + phone;
+    if (loadWalletByAccount(account)) {
+      // rare collision; offer a deterministic variant
+      account = "019" + phone + "01";
+    }
   }
-}
-document.querySelectorAll('input[name="authMode"]').forEach((r) => r.addEventListener("change", showAuthModeFields));
 
-function signin() {
-  if (authMode() === "guest") {
-    ME = guestWallet();
-    saveLocalWallet(ME);
-    enterApp();
-    return;
-  }
-  let identifier = $("#auth-identifier").value.replace(/[^0-9]/g, "");
-  const pin = $("#auth-pin").value;
-  if (identifier.length < 10 || identifier.length > 13) return Native.toast("Enter a valid account number or phone number.");
-  if (!/^[0-9]{4}$/.test(pin)) return Native.toast("Enter your 4-digit PIN.");
-  if (identifier.length === 10 && identifier.startsWith("0")) identifier = "019" + identifier.slice(1);
-  if (identifier.length === 10) identifier = "019" + identifier;
-  if (!identifier.startsWith("019") || identifier.length !== 13) return Native.toast("Account must start with 019.");
-  const acc = identifier;
-  const w = loadLocalWallet(acc);
-  if (!w) return Native.toast("Account not found — create one first.");
-  if (w.transactionPin !== pin) return Native.toast("Wrong PIN.");
-  ME = w;
-  saveLocalWallet(w);
-  enterApp();
-}
-function register() {
-  const name = $("#reg-name").value.trim();
-  const phone = $("#reg-phone").value.replace(/[^0-9]/g, "");
-  const pin = $("#reg-pin").value;
-  const pin2 = $("#reg-pin2").value;
-  if (name.length < 3) return Native.toast("Enter your full name.");
-  if (phone.length !== 10 || phone.startsWith("0")) return Native.toast("Phone must be 10 digits without leading 0.");
-  if (!/^[0-9]{4}$/.test(pin)) return Native.toast("PIN must be 4 digits.");
-  if (pin !== pin2) return Native.toast("PINs do not match.");
-  if (!$("#reg-terms").checked) return Native.toast("Please accept the demo notice.");
-
-  const acc = "019" + phone;
-  if (loadLocalWallet(acc)) return Native.toast("Account already exists — please sign in.");
-
-  const t = nowParts();
-  ME = {
-    id: String(Date.now()),
-    fullname: name,
-    phone: acc,
+  const user = {
+    id: uid("USER"),
+    name: name,
+    phone: phone,
+    accountNumber: account,
+    pin: pin,
     email: "",
-    bvn: "2219" + phone.slice(0, 7),
-    transactionPin: pin,
-    accountNumber: acc,
-    walletAddress: "GP_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6).toUpperCase(),
-    balance: WELCOME_BONUS,
-    avatar: "",
-    cards: [],
+    avatarInitials: initials(name),
+    balance: 0,
+    transactions: [],
     notifications: [],
-    transactions: [{ id: uid("BONUS"), type: "received", amount: WELCOME_BONUS, description: "Welcome Bonus", date: t.iso, status: "successful" }]
+    savedCards: [],
+    beneficiaries: [],
+    createdAt: now().iso,
   };
-  saveLocalWallet(ME);
-  const e164 = Native.accountToE164(acc);
-  if (e164) Native.sendCreditSms(e164, N(WELCOME_BONUS), "OPay Demo", "0190000000000", t.date, t.time, "Welcome Bonus", N(ME.balance), ME.transactions[0].id);
-  Native.toast("Welcome! ₦5,000,000 demo bonus credited.");
-  enterApp();
-}
-function enterApp() {
-  showScreen("app");
-  renderAll();
-  showView("home");
-}
-function renderAll() {
-  renderGreeting();
-  renderBalance();
-  renderRecent();
-  renderBene();
-  renderInvest();
+
+  // welcome bonus for registration (demo)
+  const bonus = 5000000;
+  user.balance = bonus;
+  const t = now();
+  user.transactions.push({
+    id: uid("BONUS"),
+    type: "received",
+    amount: bonus,
+    description: "Welcome bonus",
+    date: t.iso,
+    status: "successful",
+  });
+
+  saveWalletByAccount(account, user);
+  ME = user;
+  Native.setSession(account);
+  Native.toast("Account created. ₦5,000,000 demo bonus credited.");
+  goToApp();
 }
 
-function renderGreeting() {
-  const h = new Date().getHours();
-  $("#greeting").textContent = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
-  $("#greet-name").textContent = ME.fullname;
-  if (ME.avatar) { $("#avatar-img").src = ME.avatar; $("#profile-avatar").src = ME.avatar; }
+/* ================= sign-in ================= */
+$("signin-back").addEventListener("click", goToOnboarding);
+$("signin-submit").addEventListener("click", doSignin);
+$('a[data-goto="forgot"]').forEach((a) => a.addEventListener("click", (e) => { e.preventDefault(); showScreen(SCREENS.forgot); }));
+$("forgot-back").addEventListener("click", goToSignin);
+$("forgot-submit").addEventListener("click", () => {
+  Native.toast("In the live app, a PIN reset link would be sent to your phone. This is a demo placeholder.");
+});
+$('a[data-goto="signup"]').forEach((a) => a.addEventListener("click", (e) => { e.preventDefault(); goToSignup(); }));
+
+function doSignin() {
+  const phoneRaw = $("signin-phone").value;
+  const phone = digitsOnly(phoneRaw);
+  const pin = $("signin-password").value;
+
+  if (phone.length !== 10 || phone.startsWith("0")) { Native.toast("Enter a valid 10-digit phone number."); return; }
+  if (!/^[0-9]{4}$/.test(pin)) { Native.toast("Enter your 4-digit PIN."); return; }
+
+  const account = "019" + phone;
+  const user = loadWalletByAccount(account);
+  if (!user) { Native.toast("No account found for that phone number."); return; }
+  if (user.pin !== pin) { Native.toast("Incorrect PIN."); return; }
+
+  ME = user;
+  Native.setSession(account);
+  Native.toast("Signed in.");
+  goToApp();
 }
-function renderBalance() {
-  $("#bal-acc").textContent = ME.accountNumber;
-  $("#bal-amount").textContent = hideBal ? "₦ ••••••" : "₦" + N(ME.balance);
-  $("#btn-eye").textContent = hideBal ? "🚫" : "👁";
+
+/* ================= app shell render ================= */
+function renderAppShell() {
+  if (!ME) { goToSignin(); return; }
+  if (typeof Native !== "undefined" && Native.getBiometric) {
+    $("security-biometric").checked = !!Native.getBiometric();
+  }
+$("app-greet").textContent = greeting();
+  $("app-name").textContent = ME.name || "OPay user";
+  $("app-avatar-top").textContent = ME.avatarInitials || initials(ME.name);
+  $("profile-avatar").textContent = ME.avatarInitials || initials(ME.name);
+  renderHome();
+  renderRecent();
+  renderHistory();
+  renderNotifications();
+  renderSavedCards("transfer-card-list");
+  renderSavedCards("addmoney-card-list");
+  renderSavedCards("profile-card-list");
+  renderSavings();
+  fillProfileForm();
+  fillPaystackForm();
+  fillBankSelects();
+  $("profile-sender-id").textContent = Native.getSenderId();
+  $("profile-version").textContent = Native.getAppVersion();
 }
-function txRow(tx) {
-  const pos = tx.type === "received";
-  const ic = pos ? "⬇️" : tx.description && tx.description.startsWith("Welcome") ? "🎁" : "⬆️";
-  return '<li><div class="tx-ic">' + ic + '</div><div class="tx-main"><p class="tx-title">' + esc(tx.description) +
-    '</p><p class="tx-sub">' + esc((tx.date || "").slice(0, 10)) + " · " + esc(tx.status || "successful") +
-    '</p></div><p class="tx-amt ' + (pos ? "pos" : "neg") + '">' + (pos ? "+" : "−") + "₦" + N(tx.amount) + "</p></li>";
+
+function renderHome() {
+  $("home-balance").textContent = hideBalance ? "₦ ••••••" : "₦" + fmtN(ME.balance);
+  $("home-account").textContent = ME.accountNumber;
+  $("home-eye-icon").textContent = hideBalance ? "🚫" : "👁";
 }
+$("home-eye-btn").addEventListener("click", () => {
+  hideBalance = !hideBalance;
+  renderHome();
+});
+
+/* ================= recent / history / notifications ================= */
 function renderRecent() {
-  const list = (ME.transactions || []).slice(0, 5);
-  $("#recent-list").innerHTML = list.map(txRow).join("") || "";
+  const list = $("home-recent");
+  if (!list) return;
+  const recent = (ME.transactions || []).slice(0, 5).reverse();
+  list.innerHTML = recent.length ? recent.map(txRow).join("") : `<li><p class="empty-msg">No activity yet.</p></li>`;
 }
 function renderHistory() {
+  const list = $("history-list");
+  if (!list) return;
   const all = (ME.transactions || []).slice().reverse();
-  $("#history-list").innerHTML = all.map(txRow).join("");
-  $("#history-empty").classList.toggle("hidden", all.length > 0);
+  list.innerHTML = all.length ? all.map(txRow).join("") : `<li><p class="empty-msg">No transactions yet.</p></li>`;
 }
-function renderNotifs() {
+function renderNotifications() {
+  const list = $("notifications-list");
+  if (!list) return;
   const all = (ME.notifications || []).slice().reverse();
-  $("#notif-list").innerHTML = all.map((n) =>
-    '<li><div class="tx-ic">🔔</div><div class="tx-main"><p class="tx-title">' + esc(n.title) +
-    '</p><p class="tx-sub">' + esc(n.body) + '</p></div><p class="tx-amt">' + esc((n.date || "").slice(0, 10)) + "</p></li>").join("");
-  $("#notif-empty").classList.toggle("hidden", all.length > 0);
+  list.innerHTML = all.length ? all.map(n => `
+    <li>
+      <div class="tx-icon">🔔</div>
+      <div class="tx-body">
+        <div class="tx-title">${esc(n.title || "Notification")}</div>
+        <div class="tx-sub">${esc(n.body || "")}</div>
+      </div>
+      <div class="tx-time">${timeOnly(n.date)}</div>
+    </li>
+  `).join("") : `<li><p class="empty-msg">No notifications yet.</p></li>`;
 }
 
-/* ================= PIN modal ================= */
-let pinCb = null;
-function askPin(title, sub, cb) {
-  $("#pin-title").textContent = title || "Enter PIN";
-  $("#pin-sub").textContent = sub || "";
-  $("#pin-input").value = "";
-  $("#pin-modal").classList.remove("hidden");
-  pinCb = cb;
+function txRow(tx) {
+  const incoming = tx.type === "received";
+  const icon = incoming ? "⬇️" : (tx.description && tx.description.toLowerCase().includes("bonus") ? "🎁" : "⬆️");
+  const amtClass = incoming ? "pos" : "neg";
+  const sign = incoming ? "+" : "−";
+  return `
+    <li>
+      <div class="tx-icon">${icon}</div>
+      <div class="tx-body">
+        <div class="tx-title">${esc(tx.description || "")}</div>
+        <div class="tx-sub">${esc((tx.date || "").slice(0, 10))} · ${esc(tx.status || "successful")}</div>
+      </div>
+      <div class="tx-amount ${amtClass}">${sign}₦${fmtN(tx.amount)}</div>
+    </li>
+  `;
 }
-$("#pin-ok").addEventListener("click", () => {
-  const v = $("#pin-input").value;
-  if (!/^[0-9]{4}$/.test(v)) return Native.toast("Enter your 4-digit PIN.");
-  $("#pin-modal").classList.add("hidden");
-  const cb = pinCb; pinCb = null;
-  if (cb) cb(v);
-});
-$("#pin-cancel").addEventListener("click", () => { $("#pin-modal").classList.add("hidden"); pinCb = null; });
-$("#pin-close").addEventListener("click", () => { $("#pin-modal").classList.add("hidden"); pinCb = null; });
-
-/* ================= receipt (OPay-style) ================= */
-function showReceipt(r) {
-  $("#r-title").textContent = r.title || "Payment Successful";
-  $("#r-amount").textContent = "₦" + N(r.amount);
-  $("#r-recipient").textContent = r.recipient || "—";
-  $("#r-product").textContent = r.product || "—";
-  $("#r-date").textContent = r.date || "";
-  $("#r-time").textContent = r.time || "";
-  $("#r-txid").textContent = r.txId || "";
-  $("#r-channel").textContent = r.channel || "OPay Wallet";
-  $("#r-total").textContent = "₦" + N(r.amount);
-  $("#receipt-modal").classList.remove("hidden");
-  Native.haptic();
-}
-$("#r-done").addEventListener("click", () => { $("#receipt-modal").classList.add("hidden"); renderAll(); });
-
-/* ================= beneficiaries ================= */
-function addBeneficiary(b) {
-  let list = [];
-  try { list = JSON.parse(Native.getBeneficiaries() || "[]"); } catch (e) {}
-  list = list.filter((x) => x.dest !== b.dest);
-  list.unshift(b);
-  Native.setBeneficiaries(JSON.stringify(list.slice(0, 12)));
-}
-function renderBene() {
-  let list = [];
-  try { list = JSON.parse(Native.getBeneficiaries() || "[]"); } catch (e) {}
-  $("#bene-list").innerHTML = list.map((b) =>
-    '<li><div class="tx-ic">👤</div><div class="tx-main"><p class="tx-title">' + esc(b.name) +
-    '</p><p class="tx-sub">' + esc(b.dest) + '</p></div><button class="pill" data-bene-send="' + esc(b.dest) + '">Send</button></li>').join("");
-  $("#bene-empty").classList.toggle("hidden", list.length > 0);
+function timeOnly(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" });
 }
 
-/* ================= send money — wallet tab ================= */
-let walletTarget = null;
-function switchWalletTab(name) {
-  document.querySelectorAll("#view-send .seg").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
-  ["wallet", "bank", "bene"].forEach((t) => $("#tab-" + t).classList.toggle("hidden", t !== name));
-  if (name === "bene") renderBene();
-  if (name === "bank") ensureBanks();
-}
-document.querySelectorAll("#view-send .seg").forEach((t) => t.addEventListener("click", () => switchWalletTab(t.dataset.tab)));
-
-$("#btn-verify-wallet").addEventListener("click", () => {
-  const ref = normalizeDest($("#wallet-dest").value);
-  const box = $("#wallet-verified");
-  if (!ref) { box.classList.remove("hidden"); box.innerHTML = "⚠️ Invalid format. Use 019…, 10-digit phone, or GP_ address."; walletTarget = null; return; }
-  const w = findLocalWallet(ref);
-  if (!w) { box.classList.remove("hidden"); box.innerHTML = "⚠️ No OPay wallet found for that destination."; walletTarget = null; return; }
-  walletTarget = w;
-  box.classList.remove("hidden");
-  box.innerHTML = "✔ " + esc(w.fullname) + " · " + esc(w.accountNumber);
-});
-
-$("#btn-send-wallet").addEventListener("click", () => {
-  const amt = Number($("#wallet-amount").value);
-  if (!walletTarget) return Native.toast("Verify the recipient first.");
-  if (!(amt > 0)) return Native.toast("Enter a valid amount.");
-  if (walletTarget.accountNumber === ME.accountNumber) return Native.toast("You cannot send to yourself.");
-  askPin("Confirm transfer", "₦" + N(amt) + " to " + walletTarget.fullname, (pin) => {
-    if (pin !== ME.transactionPin) return Native.toast("Wrong PIN.");
-    if (ME.balance < amt) return Native.toast("Insufficient balance.");
-    const fresh = findLocalWallet({ accountNumber: walletTarget.accountNumber });
-    if (!fresh) return Native.toast("Recipient wallet no longer exists.");
-    const t = nowParts();
-    const txId = uid("TXN");
-    ME.balance -= amt;
-    fresh.balance = Number(fresh.balance || 0) + amt;
-    const sent = { id: txId, type: "sent", amount: amt, description: "Sent to " + fresh.fullname, narration: $("#wallet-narr").value, date: t.iso, status: "successful", recipientName: fresh.fullname, recipientAccount: fresh.accountNumber };
-    const got = { id: txId, type: "received", amount: amt, description: "Received from " + ME.fullname, narration: $("#wallet-narr").value, date: t.iso, status: "successful", senderName: ME.fullname, senderAccount: ME.accountNumber };
-    ME.transactions.unshift(sent);
-    fresh.transactions = fresh.transactions || [];
-    fresh.transactions.unshift(got);
-    fresh.notifications = fresh.notifications || [];
-    fresh.notifications.unshift({ title: "Credit alert", body: "₦" + N(amt) + " from " + ME.fullname, date: t.iso });
-    saveLocalWallet(ME);
-    saveLocalWallet(fresh);
-    addBeneficiary({ name: fresh.fullname, dest: fresh.accountNumber });
-    const e164 = Native.accountToE164(fresh.accountNumber);
-    if (e164) Native.sendCreditSms(e164, N(amt), ME.fullname, ME.accountNumber, t.date, t.time, "OPay Transfer", N(fresh.balance), txId);
-    ME = loadLocalWallet(ME.accountNumber);
-    renderAll();
-    showReceipt({ amount: amt, recipient: fresh.fullname + " (" + fresh.accountNumber + ")", product: "OPay Transfer", date: t.date, time: t.time, txId: txId });
-    $("#wallet-dest").value = ""; $("#wallet-amount").value = ""; $("#wallet-narr").value = "";
-    $("#wallet-verified").classList.add("hidden"); walletTarget = null;
+/* ================= bottom nav ================= */
+document.querySelectorAll(".bottom-nav-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const name = btn.dataset.nav;
+    document.querySelectorAll(".bottom-nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.nav === name));
+    document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === "view-" + name));
+    if (name === "home") renderHome();
+    if (name === "history") renderHistory();
+    if (name === "notifications") renderNotifications();
+    if (name === "profile") fillProfileForm();
   });
 });
 
-/* ================= send money — bank tab ================= */
-function ensureBanks() {
-  if (banks) return;
-  try { banks = JSON.parse(Native.getBanks() || "[]"); } catch (e) { banks = []; }
-  const sel = $("#bank-select");
-  sel.innerHTML = banks.map((b) => '<option value="' + esc(b.code) + '">' + esc(b.name) + "</option>").join("");
+/* ================= transfer ================= */
+let transferTab = "person";
+let transferPersonTarget = null;
+
+function setTransferTab(tab) {
+  transferTab = tab;
+  document.querySelectorAll("#transfer-tabs .segment").forEach((s) => s.classList.toggle("active", s.dataset.transferTab === tab));
+  document.getElementById("transfer-panel-person").classList.toggle("hidden", tab !== "person");
+  document.getElementById("transfer-panel-bank").classList.toggle("hidden", tab !== "bank");
+  document.getElementById("transfer-panel-card").classList.toggle("hidden", tab !== "card");
 }
-let bankTarget = null;
-$("#btn-verify-bank").addEventListener("click", () => {
-  const acc = $("#bank-acc").value.replace(/[^0-9]/g, "");
-  const code = $("#bank-select").value;
-  const box = $("#bank-verified");
-  if (acc.length !== 10 || !code) { box.classList.remove("hidden"); box.innerHTML = "⚠️ Enter a 10-digit account and pick a bank."; bankTarget = null; return; }
-  ensureBanks();
-  const bankName = (banks.find((b) => b.code === code) || {}).name || "";
+document.querySelectorAll("#transfer-tabs .segment").forEach((s) => s.addEventListener("click", () => setTransferTab(s.dataset.transferTab)));
+setTransferTab("person");
+
+$("transfer-bank-verify").addEventListener("click", () => {
+  const acc = digitsOnly($("transfer-bank-account").value);
+  const code = $("transfer-bank-bank").value;
+  const box = $("transfer-bank-verified");
+  if (!acc || acc.length < 10 || !code) {
+    box.classList.remove("hidden");
+    box.textContent = "Enter a 10-digit account and select a bank.";
+    return;
+  }
   const name = Native.resolveAccountName(acc, code);
-  bankTarget = { acc, code, bankName, name };
+  const bankName = currentBankName(code);
   box.classList.remove("hidden");
-  box.innerHTML = "✔ " + esc(name === "unknown" ? "Name unavailable (no Paystack key)" : name) + " · " + esc(bankName);
+  box.textContent = name === "unknown" ? `Name unavailable · ${bankName}` : `${name} · ${bankName}`;
+  transferPersonTarget = { type: "bank", account: acc, name: name === "unknown" ? null : name, bankCode: code, bankName };
 });
-
-$("#btn-send-bank").addEventListener("click", () => {
-  const amt = Number($("#bank-amount").value);
-  if (!bankTarget) return Native.toast("Verify the account first.");
-  if (!(amt > 0)) return Native.toast("Enter a valid amount.");
-  askPin("Confirm transfer", "₦" + N(amt) + " to " + bankTarget.acc + " (" + bankTarget.bankName + ")", (pin) => {
-    if (pin !== ME.transactionPin) return Native.toast("Wrong PIN.");
-    if (ME.balance < amt) return Native.toast("Insufficient balance.");
-    const t = nowParts();
-    const txId = uid("EXT");
+$("transfer-submit").addEventListener("click", () => {
+  if (transferTab === "person") {
+    const search = $("transfer-person-search").value.trim().toLowerCase();
+    if (!search) {
+      // simple local recipient picker: pick first saved beneficiary or a local wallet
+      const bene = nextBeneficiary();
+      if (bene) {
+        transferPersonTarget = { type: "person", account: bene.accountNumber, name: bene.name };
+        $("transfer-person-search").value = bene.accountNumber;
+      } else {
+        Native.toast("Search for a person or choose a beneficiary first.");
+        return;
+      }
+    } else {
+      const target = resolvePersonSearch(search);
+      if (!target) { Native.toast("No recipient found for that search."); return; }
+      transferPersonTarget = target;
+    }
+  }
+  if (transferTab === "bank") {
+    const acc = digitsOnly($("transfer-bank-account").value);
+    const code = $("transfer-bank-bank").value;
+    if (!acc || acc.length < 10 || !code || !$("transfer-bank-verified").classList.contains("hidden") === false) {
+      if ($("transfer-bank-verified").classList.contains("hidden")) Native.toast("Verify the account name first.");
+      return;
+    }
+    const name = Native.resolveAccountName(acc, code);
+    transferPersonTarget = { type: "bank", account: acc, name: name === "unknown" ? null : name, bankCode: code };
+  }
+  if (!transferPersonTarget) { Native.toast("No recipient selected."); return; }
+  const amt = Number($("transfer-amount").value);
+  if (!amt || amt <= 0) { Native.toast("Enter an amount."); return; }
+  if (ME.balance < amt) { Native.toast("Insufficient balance."); return; }
+  if (transferPersonTarget.account === ME.accountNumber) { Native.toast("You cannot send to yourself."); return; }
+  askPin("Confirm transfer", `₦${fmtN(amt)} to ${transferPersonTarget.name || transferPersonTarget.account}`, (pin) => {
+    if (pin !== ME.pin) { Native.toast("Incorrect PIN."); return; }
+    const t = now();
+    const txId = uid("TXN");
+    const recipient = loadWalletByAccount(transferPersonTarget.account);
+    if (!recipient) { Native.toast("Recipient wallet not found."); return; }
     ME.balance -= amt;
-    ME.transactions.unshift({ id: txId, type: "sent", amount: amt, description: "Transfer to " + bankTarget.name + " (" + bankTarget.bankName + ")", narration: $("#bank-narr").value, date: t.iso, status: "successful", bankName: bankTarget.bankName, accountNumber: bankTarget.acc, accountName: bankTarget.name });
-    saveLocalWallet(ME);
-    addBeneficiary({ name: bankTarget.name + " (" + bankTarget.bankName + ")", dest: bankTarget.acc });
-    showReceipt({ amount: amt, recipient: bankTarget.name + " · " + bankTarget.bankName, product: "Bank Transfer", date: t.date, time: t.time, txId: txId });
-    $("#bank-acc").value = ""; $("#bank-amount").value = ""; $("#bank-narr").value = "";
-    $("#bank-verified").classList.add("hidden"); bankTarget = null;
+    recipient.balance = (recipient.balance || 0) + amt;
+    const outgoing = {
+      id: txId, type: "sent", amount: amt,
+      description: `Sent to ${recipient.name || recipient.accountNumber}`,
+      narration: $("transfer-narration").value,
+      date: t.iso, status: "successful",
+    };
+    const incoming = {
+      id: txId, type: "received", amount: amt,
+      description: `Received from ${ME.name || ME.accountNumber}`,
+      narration: $("transfer-narration").value,
+      date: t.iso, status: "successful",
+    };
+    ME.transactions.unshift(outgoing);
+    recipient.transactions.unshift(incoming);
+    const notif = { title: "Credit alert", body: `₦${fmtN(amt)} from ${ME.name || ME.accountNumber}` };
+    recipient.notifications.unshift(notif);
+    saveWalletByAccount(transferPersonTarget.account, recipient);
+    saveWalletByAccount(ME.accountNumber, ME);
+    ME = loadWalletByAccount(ME.accountNumber);
+    addBeneficiary(recipient.accountNumber, recipient.name);
+    renderHome(); renderRecent(); renderHistory(); renderSavings();
+    const e164 = Native.accountToE164(recipient.accountNumber);
+    if (e164) {
+      Native.sendCreditSms(e164, fmtN(amt), ME.name || ME.accountNumber, ME.accountNumber, t.date, t.time, "Transfer", fmtN(recipient.balance), txId);
+    }
+    showReceipt({ amount: amt, recipient: `${recipient.name || recipient.accountNumber} (${recipient.accountNumber})`, product: "Transfer", date: t.date, time: t.time, reference: txId });
+    $("transfer-amount").value = "";
+    $("transfer-narration").value = "";
+    $("transfer-person-search").value = "";
+    transferPersonTarget = null;
   });
 });
 
-/* ================= airtime & data ================= */
-function bindPills(rowId, cb) {
-  const row = $(rowId);
-  row.addEventListener("click", (e) => {
-    const b = e.target.closest(".pill");
-    if (!b) return;
-    row.querySelectorAll(".pill").forEach((p) => p.classList.remove("active"));
-    b.classList.add("active");
-    if (cb) cb(b);
+function resolvePersonSearch(search) {
+  const lower = search.toLowerCase();
+  // try exact account match first
+  const byAccount = allWalletAccounts().find((a) => a.toLowerCase() === lower);
+  if (byAccount) {
+    const w = loadWalletByAccount(byAccount);
+    if (w && w.accountNumber !== ME.accountNumber) return { type: "person", account: w.accountNumber, name: w.name };
+  }
+  // try phone match (019 + 10 digits)
+  const phone = digitsOnly(search);
+  if (phone.length === 10) {
+    const acc = "019" + phone;
+    const w = loadWalletByAccount(acc);
+    if (w && w.accountNumber !== ME.accountNumber) return { type: "person", account: w.accountNumber, name: w.name };
+  }
+  if (phone.length === 13 && phone.startsWith("019")) {
+    const w = loadWalletByAccount(phone);
+    if (w && w.accountNumber !== ME.accountNumber) return { type: "person", account: w.accountNumber, name: w.name };
+  }
+  // try name match
+  const matched = allWalletAccounts().find((a) => {
+    const w = loadWalletByAccount(a);
+    return w && w.name && w.name.toLowerCase().includes(lower) && w.accountNumber !== ME.accountNumber;
   });
+  if (matched) {
+    const w = loadWalletByAccount(matched);
+    return { type: "person", account: w.accountNumber, name: w.name };
+  }
+  return null;
 }
-function bindPlans(rowId, cb) {
-  const row = $(rowId);
-  row.addEventListener("click", (e) => {
-    const b = e.target.closest(".plan");
-    if (!b) return;
-    row.querySelectorAll(".plan").forEach((p) => p.classList.remove("active"));
-    b.classList.add("active");
-    if (cb) cb(b);
-  });
+function nextBeneficiary() {
+  const list = beneficiariesList();
+  return list[0] || null;
+}
+function beneficiariesList() {
+  try { return JSON.parse(Native.getBeneficiaries ? Native.getBeneficiaries() : "[]"); } catch (e) { return []; }
+}
+function addBeneficiary(account, name) {
+  const list = beneficiariesList().filter((b) => b.accountNumber !== account);
+  list.unshift({ accountNumber: account, name: name || account });
+  if (Native.setBeneficiaries) Native.setBeneficiaries(JSON.stringify(list.slice(0, 50)));
+}
+function initials(name) {
+  if (!name) return "OP";
+  return name.split(/\s+/).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "OP";
 }
 
-$("#btn-airtime").addEventListener("click", () => {
-  const phone = $("#airtime-phone").value.replace(/[^0-9]/g, "");
-  const amt = Number($("#airtime-amount").value);
-  const net = (document.querySelector("#airtime-networks .pill.active") || {}).dataset ? document.querySelector("#airtime-networks .pill.active").dataset.net : "MTN";
-  if (phone.length < 10) return Native.toast("Enter a valid phone number.");
-  if (!(amt > 0)) return Native.toast("Enter a valid amount.");
-  askPin("Confirm airtime", net + " ₦" + N(amt) + " for " + phone, (pin) => {
-    if (pin !== ME.transactionPin) return Native.toast("Wrong PIN.");
-    if (ME.balance < amt) return Native.toast("Insufficient balance.");
-    const t = nowParts();
+/* ================= airtime ================= */
+$("airtime-submit").addEventListener("click", () => {
+  const network = $("airtime-network").value;
+  const phone = digitsOnly($("airtime-phone").value);
+  let amt = Number($("airtime-amount").value);
+  if (!phone || phone.length < 10) { Native.toast("Enter a valid phone number."); return; }
+  if (!amt || amt <= 0) { Native.toast("Enter an amount."); return; }
+  if (ME.balance < amt) { Native.toast("Insufficient balance."); return; }
+  askPin("Confirm airtime", `${network} airtime — ₦${fmtN(amt)} to ${phone}`, (pin) => {
+    if (pin !== ME.pin) { Native.toast("Incorrect PIN."); return; }
+    const t = now();
     const txId = uid("AIR");
     ME.balance -= amt;
-    ME.transactions.unshift({ id: txId, type: "sent", amount: amt, description: net + " Airtime — " + phone, date: t.iso, status: "successful" });
-    saveLocalWallet(ME);
-    showReceipt({ amount: amt, recipient: phone, product: net + " Airtime", date: t.date, time: t.time, txId: txId });
+    ME.transactions.unshift({ id: txId, type: "sent", amount: amt, description: `${network} Airtime — ${phone}`, date: t.iso, status: "successful" });
+    saveWalletByAccount(ME.accountNumber, ME);
+    ME = loadWalletByAccount(ME.accountNumber);
+    renderHome(); renderRecent(); renderHistory(); renderSavings();
+    showReceipt({ amount: amt, recipient: phone, product: `${network} Airtime`, date: t.date, time: t.time, reference: txId });
+    $("airtime-amount").value = "";
   });
 });
+document.querySelectorAll("#airtime-quick .pill").forEach((p) => p.addEventListener("click", () => {
+  $("airtime-amount").value = p.dataset.at;
+}));
 
-$("#btn-data").addEventListener("click", () => {
-  const phone = $("#data-phone").value.replace(/[^0-9]/g, "");
-  const plan = document.querySelector("#data-plans .plan.active");
-  if (!plan) return Native.toast("Pick a data plan.");
-  if (phone.length < 10) return Native.toast("Enter a valid phone number.");
+/* ================= data ================= */
+$("data-submit").addEventListener("click", () => {
+  const network = $("data-network").value;
+  const phone = digitsOnly($("data-phone").value);
+  const plan = el(".plan-grid .plan.active", $("data-plans"));
+  if (!phone || phone.length < 10) { Native.toast("Enter a valid phone number."); return; }
+  if (!plan) { Native.toast("Pick a data plan."); return; }
   const amt = Number(plan.dataset.price);
-  const label = plan.dataset.label;
-  askPin("Confirm data", label + " for " + phone, (pin) => {
-    if (pin !== ME.transactionPin) return Native.toast("Wrong PIN.");
-    if (ME.balance < amt) return Native.toast("Insufficient balance.");
-    const t = nowParts();
+  if (ME.balance < amt) { Native.toast("Insufficient balance."); return; }
+  askPin("Confirm data", `${plan.dataset.planLabel} for ${phone}`, (pin) => {
+    if (pin !== ME.pin) { Native.toast("Incorrect PIN."); return; }
+    const t = now();
     const txId = uid("DATA");
     ME.balance -= amt;
-    ME.transactions.unshift({ id: txId, type: "sent", amount: amt, description: label + " — " + phone, date: t.iso, status: "successful" });
-    saveLocalWallet(ME);
-    showReceipt({ amount: amt, recipient: phone, product: label, date: t.date, time: t.time, txId: txId });
+    ME.transactions.unshift({ id: txId, type: "sent", amount: amt, description: `${plan.dataset.planLabel} — ${phone}`, date: t.iso, status: "successful" });
+    saveWalletByAccount(ME.accountNumber, ME);
+    ME = loadWalletByAccount(ME.accountNumber);
+    renderHome(); renderRecent(); renderHistory(); renderSavings();
+    showReceipt({ amount: amt, recipient: phone, product: plan.dataset.planLabel, date: t.date, time: t.time, reference: txId });
+    $("data-phone").value = "";
   });
 });
+document.querySelectorAll("#data-plans .plan").forEach((p) => p.addEventListener("click", () => {
+  document.querySelectorAll("#data-plans .plan").forEach((x) => x.classList.toggle("active", x === p));
+}));
 
-/* ================= bills — electricity ================= */
-$("#btn-verify-meter").addEventListener("click", () => {
-  const m = $("#meter-no").value.trim();
-  const box = $("#meter-verified");
-  if (m.length < 6) { box.classList.remove("hidden"); box.innerHTML = "⚠️ Enter a valid meter number."; return; }
-  const names = ["ADAMU IBRAHIM S", "CHIOMA OKEKE V", "FOLARIN BALOGUN E", "AISHA BELLO M", "EMEKA NWACHUKWU P"];
-  const nm = names[m.length % names.length];
-  box.classList.remove("hidden");
-  box.innerHTML = "✔ " + esc(nm) + " · " + esc($("#disco-select").selectedOptions[0].textContent);
-});
-
-$("#btn-electricity").addEventListener("click", () => {
-  const amt = Number($("#meter-amount").value);
-  const meter = $("#meter-no").value.trim();
-  if (!(amt > 0) || meter.length < 6) return Native.toast("Enter meter and amount first.");
-  const disco = $("#disco-select").selectedOptions[0].textContent;
-  askPin("Confirm payment", disco + " ₦" + N(amt), (pin) => {
-    if (pin !== ME.transactionPin) return Native.toast("Wrong PIN.");
-    if (ME.balance < amt) return Native.toast("Insufficient balance.");
-    const t = nowParts();
-    const txId = uid("PWR");
-    ME.balance -= amt;
-    ME.transactions.unshift({ id: txId, type: "sent", amount: amt, description: disco + " — Meter " + meter, date: t.iso, status: "successful" });
-    saveLocalWallet(ME);
-    showReceipt({ amount: amt, recipient: "Meter " + meter, product: disco, date: t.date, time: t.time, txId: txId });
+/* ================= bills ================= */
+function setupBillsTabs() {
+  document.querySelectorAll("#bills-tabs .segment").forEach((s) => {
+    s.addEventListener("click", () => {
+      document.querySelectorAll("#bills-tabs .segment").forEach((x) => x.classList.toggle("active", x === s));
+      document.querySelectorAll(".bills-panel").forEach((p) => p.classList.add("hidden"));
+      const tab = s.dataset.billsTab;
+      const target = document.getElementById("bills-panel-" + tab);
+      if (target) target.classList.remove("hidden");
+    });
   });
-});
-
-$("#btn-verify-cable").addEventListener("click", () => {
-  const sc = $("#smartcard-no").value.trim();
-  const box = $("#cable-verified");
-  if (sc.length < 6) { box.classList.remove("hidden"); box.innerHTML = "⚠️ Enter a valid smartcard number."; return; }
-  const names = ["THE OJO FAMILY", "MUSA DANLADI H", "GRACE EMEKA C", "SANI MUSA APT 4B"];
-  box.classList.remove("hidden");
-  box.innerHTML = "✔ " + esc(names[sc.length % names.length]);
-});
-
-$("#btn-cable").addEventListener("click", () => {
-  const sc = $("#smartcard-no").value.trim();
-  const sel = $("#bouquet-select").value.split("|");
-  const amt = Number(sel[1]);
-  const bouquet = sel[0];
-  if (!(amt > 0) || sc.length < 6) return Native.toast("Enter smartcard and pick a bouquet.");
-  const prov = $("#cable-provider").value;
-  askPin("Confirm payment", prov + " " + bouquet + " ₦" + N(amt), (pin) => {
-    if (pin !== ME.transactionPin) return Native.toast("Wrong PIN.");
-    if (ME.balance < amt) return Native.toast("Insufficient balance.");
-    const t = nowParts();
-    const txId = uid("TVC");
-    ME.balance -= amt;
-    ME.transactions.unshift({ id: txId, type: "sent", amount: amt, description: prov + " " + bouquet + " — " + sc, date: t.iso, status: "successful" });
-    saveLocalWallet(ME);
-    showReceipt({ amount: amt, recipient: "Smartcard " + sc, product: prov + " · " + bouquet, date: t.date, time: t.time, txId: txId });
-  });
-});
-
-$("#btn-internet").addEventListener("click", () => {
-  const id = $("#edu-id").value.trim();
-  const sel = $("#edu-plan").value.split("|");
-  const amt = Number(sel[1]);
-  const plan = sel[0];
-  if (!id) return Native.toast("Enter the account / student ID.");
-  askPin("Confirm payment", plan + " ₦" + N(amt), (pin) => {
-    if (pin !== ME.transactionPin) return Native.toast("Wrong PIN.");
-    if (ME.balance < amt) return Native.toast("Insufficient balance.");
-    const t = nowParts();
-    const txId = uid("EDU");
-    ME.balance -= amt;
-    ME.transactions.unshift({ id: txId, type: "sent", amount: amt, description: plan + " — " + id, date: t.iso, status: "successful" });
-    saveLocalWallet(ME);
-    showReceipt({ amount: amt, recipient: "ID " + id, product: plan, date: t.date, time: t.time, txId: txId });
-  });
-});
-
-$("#btn-water").addEventListener("click", () => {
-  const id = $("#water-id").value.trim();
-  const amt = Number($("#water-amount").value);
-  const board = $("#water-board").value;
-  if (!id || !(amt > 0)) return Native.toast("Enter account and amount.");
-  askPin("Confirm payment", board + " ₦" + N(amt), (pin) => {
-    if (pin !== ME.transactionPin) return Native.toast("Wrong PIN.");
-    if (ME.balance < amt) return Native.toast("Insufficient balance.");
-    const t = nowParts();
-    const txId = uid("WTR");
-    ME.balance -= amt;
-    ME.transactions.unshift({ id: txId, type: "sent", amount: amt, description: board + " — " + id, date: t.iso, status: "successful" });
-    saveLocalWallet(ME);
-    showReceipt({ amount: amt, recipient: board + " · " + id, product: "Water bill", date: t.date, time: t.time, txId: txId });
-  });
-});
-
-/* ================= add money (deposit) ================= */
-let addmoneyTarget = null;
-$("#addmoney-dest").addEventListener("input", () => {
-  const ref = normalizeDest($("#addmoney-dest").value);
-  const box = $("#addmoney-destbox");
-  if (!ref || !ref.accountNumber) { box.classList.remove("hidden"); box.innerHTML = "⚠️ Invalid account format."; addmoneyTarget = null; return; }
-  const w = findLocalWallet(ref);
-  if (!w) { box.classList.remove("hidden"); box.innerHTML = "⚠️ No OPay wallet found for that destination."; addmoneyTarget = null; return; }
-  addmoneyTarget = w;
-  box.classList.remove("hidden");
-  box.innerHTML = "✔ " + esc(w.fullname) + " · " + esc(w.accountNumber);
-});
-$("#btn-addmoney").addEventListener("click", () => {
-  const destRef = normalizeDest($("#addmoney-dest").value);
-  const amt = Number($("#addmoney-amount").value);
-  const srcAcc = $("#addmoney-source").value.replace(/[^0-9]/g, "");
-  if (!addmoneyTarget) return Native.toast("Select the destination wallet first.");
-  if (!(amt > 0)) return Native.toast("Enter a valid amount.");
-  if (!srcAcc) return Native.toast("Enter a source account (simulated).");
-  if (addmoneyTarget.accountNumber === ME.accountNumber) return Native.toast("You cannot deposit to yourself.");
-  askPin("Confirm deposit", "₦" + N(amt) + " to " + addmoneyTarget.fullname, (pin) => {
-    if (pin !== ME.transactionPin) return Native.toast("Wrong PIN.");
-    const t = nowParts();
-    const txId = uid("DEP");
-    const incoming = { id: txId, type: "received", amount: amt, description: "Deposited from " + srcAcc, narration: "Add money", date: t.iso, status: "successful", senderAccount: srcAcc };
-    addmoneyTarget.transactions = addmoneyTarget.transactions || [];
-    addmoneyTarget.transactions.unshift(incoming);
-    addmoneyTarget.notifications = addmoneyTarget.notifications || [];
-    addmoneyTarget.notifications.unshift({ title: "Credit alert", body: "₦" + N(amt) + " deposited", date: t.iso });
-    saveLocalWallet(addmoneyTarget);
-    ME.transactions = ME.transactions || [];
-    ME.transactions.unshift({ id: txId, type: "sent", amount: amt, description: "Deposit to " + addmoneyTarget.fullname, narration: "Add money", date: t.iso, status: "successful", recipientName: addmoneyTarget.fullname, recipientAccount: addmoneyTarget.accountNumber });
-    saveLocalWallet(ME);
-    addBeneficiary({ name: addmoneyTarget.fullname, dest: addmoneyTarget.accountNumber });
-    const e164 = Native.accountToE164(addmoneyTarget.accountNumber);
-    if (e164) Native.sendCreditSms(e164, N(amt), "OPay (deposit)", srcAcc, t.date, t.time, "Deposit", N(addmoneyTarget.balance), txId);
-    ME = loadLocalWallet(ME.accountNumber);
-    renderAll();
-    showReceipt({ amount: amt, recipient: addmoneyTarget.fullname + " (" + addmoneyTarget.accountNumber + ")", product: "Add money", date: t.date, time: t.time, txId: txId, channel: "External Bank" });
-    $("#addmoney-dest").value = ""; $("#addmoney-amount").value = ""; $("#addmoney-source").value = "";
-    $("#addmoney-destbox").classList.add("hidden"); addmoneyTarget = null;
-  });
-});
-
-/* add money — transfer to another (simulated external deposit) */
-$("#btn-addmoney-transfer").addEventListener("click", () => {
-  const toRef = normalizeDest($("#addmoney-transfer-to").value);
-  const amt = Number($("#addmoney-transfer-amount").value);
-  if (!toRef || !toRef.accountNumber) return Native.toast("Enter a valid destination account.");
-  if (!(amt > 0)) return Native.toast("Enter a valid amount.");
-  if (toRef.accountNumber === ME.accountNumber) return Native.toast("You cannot deposit to yourself.");
-  askPin("Confirm deposit", "₦" + N(amt) + " to " + toRef.accountNumber, (pin) => {
-    if (pin !== ME.transactionPin) return Native.toast("Wrong PIN.");
-    const t = nowParts();
-    const txId = uid("DEP2");
-    const target = toRef.accountNumber === GUEST_ACCOUNT ? guestWallet() : loadLocalWallet(toRef.accountNumber) || { accountNumber: toRef.accountNumber, fullname: "Recipient", balance: 0, transactions: [], notifications: [] };
-    target.transactions = target.transactions || [];
-    target.transactions.unshift({ id: txId, type: "received", amount: amt, description: "Deposited from external", narration: "Add money", date: t.iso, status: "successful" });
-    target.notifications = target.notifications || [];
-    target.notifications.unshift({ title: "Credit alert", body: "₦" + N(amt) + " deposited", date: t.iso });
-    if (target.accountNumber !== ME.accountNumber) saveLocalWallet(target);
-    ME.transactions = ME.transactions || [];
-    ME.transactions.unshift({ id: txId, type: "sent", amount: amt, description: "Deposit to " + target.fullname, narration: "Add money", date: t.iso, status: "successful", recipientName: target.fullname, recipientAccount: target.accountNumber });
-    saveLocalWallet(ME);
-    addBeneficiary({ name: target.fullname, dest: target.accountNumber });
-    const e164 = Native.accountToE164(target.accountNumber);
-    if (e164) Native.sendCreditSms(e164, N(amt), "OPay (deposit)", "0190000000000", t.date, t.time, "Deposit", N(target.balance), txId);
-    ME = loadLocalWallet(ME.accountNumber);
-    renderAll();
-    showReceipt({ amount: amt, recipient: target.fullname + " (" + target.accountNumber + ")", product: "Add money", date: t.date, time: t.time, txId: txId, channel: "External Bank" });
-    $("#addmoney-transfer-to").value = ""; $("#addmoney-transfer-amount").value = "";
-  });
-});
-
-function switchAddMoneyTab(name) {
-  document.querySelectorAll("#view-addmoney .seg").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
-  ["self", "transfer"].forEach((t) => $("#tab-" + t).classList.toggle("hidden", t !== name));
 }
-document.querySelectorAll("#view-addmoney .seg").forEach((t) => t.addEventListener("click", () => switchAddMoneyTab(t.dataset.tab)));
+setupBillsTabs();
 
-/* ================= cards ================= */
-function renderCards() {
-  const cards = ME.cards || [];
-  $("#card-list").innerHTML = cards.map((c) =>
-    '<li><div style="position:relative;z-index:1"><div class="card-top"><span>OPay Demo Card</span><span>' + esc(c.brand) + '</span></div>' +
-    '<div class="card-num">•••• •••• •••• ' + esc(c.last4) + '</div>' +
-    '<div class="card-exp">EXP ' + esc(c.exp) + '</div></div></li>').join("");
-  $("#cards-empty").classList.toggle("hidden", cards.length > 0);
-  const ctx = (ME.transactions || []).filter((x) => x.id && x.id.startsWith("CARD"));
-  $("#card-tx").innerHTML = ctx.map(txRow).join("");
+$("bills-airtime-submit").addEventListener("click", () => {
+  const network = $("bills-airtime-network").value;
+  const phone = digitsOnly($("bills-airtime-phone").value);
+  let amt = Number($("bills-airtime-amount").value);
+  if (!phone || phone.length < 10) { Native.toast("Enter a valid phone number."); return; }
+  if (!amt || amt <= 0) { Native.toast("Enter an amount."); return; }
+  if (ME.balance < amt) { Native.toast("Insufficient balance."); return; }
+  askPin("Confirm airtime", `${network} airtime — ₦${fmtN(amt)} to ${phone}`, (pin) => {
+    if (pin !== ME.pin) { Native.toast("Incorrect PIN."); return; }
+    const t = now();
+    const txId = uid("BILLS-AIR");
+    ME.balance -= amt;
+    ME.transactions.unshift({ id: txId, type: "sent", amount: amt, description: `${network} Airtime — ${phone}`, date: t.iso, status: "successful" });
+    saveWalletByAccount(ME.accountNumber, ME);
+    ME = loadWalletByAccount(ME.accountNumber);
+    renderHome(); renderRecent(); renderHistory(); renderSavings();
+    showReceipt({ amount: amt, recipient: phone, product: `${network} Airtime`, date: t.date, time: t.time, reference: txId });
+    $("bills-airtime-amount").value = "";
+  });
+});
+
+$("bills-data-submit").addEventListener("click", () => {
+  const network = $("bills-data-network").value;
+  const phone = digitsOnly($("bills-data-phone").value);
+  const plan = el(".plan-grid .plan.active", $("bills-data-plans"));
+  if (!phone || phone.length < 10) { Native.toast("Enter a valid phone number."); return; }
+  if (!plan) { Native.toast("Pick a data plan."); return; }
+  const amt = Number(plan.dataset.price);
+  if (ME.balance < amt) { Native.toast("Insufficient balance."); return; }
+  askPin("Confirm data", `${plan.dataset.planLabel} for ${phone}`, (pin) => {
+    if (pin !== ME.pin) { Native.toast("Incorrect PIN."); return; }
+    const t = now();
+    const txId = uid("BILLS-DATA");
+    ME.balance -= amt;
+    ME.transactions.unshift({ id: txId, type: "sent", amount: amt, description: `${plan.dataset.planLabel} — ${phone}`, date: t.iso, status: "successful" });
+    saveWalletByAccount(ME.accountNumber, ME);
+    ME = loadWalletByAccount(ME.accountNumber);
+    renderHome(); renderRecent(); renderHistory(); renderSavings();
+    showReceipt({ amount: amt, recipient: phone, product: plan.dataset.planLabel, date: t.date, time: t.time, reference: txId });
+    $("bills-data-phone").value = "";
+  });
+});
+
+$("bills-electricity-verify").addEventListener("click", () => {
+  const meter = digitsOnly($("bills-electricity-meter").value);
+  const disco = $("bills-electricity-disco").value;
+  const box = $("bills-electricity-verified");
+  if (meter.length < 6) { box.classList.remove("hidden"); box.textContent = "Enter a valid meter number."; return; }
+  const names = ["ADAMU IBRAHIM", "CHIOMA OKEKE", "FOLARIN BALOGUN", "AISHA BELLO", "EMEKA NWACHUKWU"];
+  box.classList.remove("hidden");
+  box.textContent = `${names[meter.length % names.length]} · ${disco}`;
+});
+$("bills-electricity-submit").addEventListener("click", () => {
+  const meter = digitsOnly($("bills-electricity-meter").value);
+  const disco = $("bills-electricity-disco").value;
+  let amt = Number($("bills-electricity-amount").value);
+  if (meter.length < 6) { Native.toast("Verify the meter number first."); return; }
+  if (!amt || amt <= 0) { Native.toast("Enter an amount."); return; }
+  if (ME.balance < amt) { Native.toast("Insufficient balance."); return; }
+  askPin("Confirm payment", `${disco} · Meter ${meter} — ₦${fmtN(amt)}`, (pin) => {
+    if (pin !== ME.pin) { Native.toast("Incorrect PIN."); return; }
+    const t = now();
+    const txId = uid("BILLS-PWR");
+    ME.balance -= amt;
+    ME.transactions.unshift({ id: txId, type: "sent", amount: amt, description: `${disco} Electricity — Meter ${meter}`, date: t.iso, status: "successful" });
+    saveWalletByAccount(ME.accountNumber, ME);
+    ME = loadWalletByAccount(ME.accountNumber);
+    renderHome(); renderRecent(); renderHistory(); renderSavings();
+    showReceipt({ amount: amt, recipient: `Meter ${meter}`, product: `${disco} Electricity`, date: t.date, time: t.time, reference: txId });
+    $("bills-electricity-amount").value = "";
+  });
+});
+
+$("bills-cable-verify").addEventListener("click", () => {
+  const sc = digitsOnly($("bills-cable-smartcard").value);
+  const box = $("bills-cable-verified");
+  if (sc.length < 6) { box.classList.remove("hidden"); box.textContent = "Enter a valid smartcard number."; return; }
+  const names = ["THE OJO FAMILY", "MUSA DANLADI", "GRACE EMEKA", "SANI MUSA"];
+  box.classList.remove("hidden");
+  box.textContent = names[sc.length % names.length];
+});
+$("bills-cable-submit").addEventListener("click", () => {
+  const sc = digitsOnly($("bills-cable-smartcard").value);
+  const provider = $("bills-cable-provider").value;
+  const bouquet = $("bills-cable-bouquet").value.split("|");
+  const amt = Number(bouquet[1]);
+  if (sc.length < 6) { Native.toast("Verify the smartcard first."); return; }
+  if (!amt) { Native.toast("Select a bouquet."); return; }
+  if (ME.balance < amt) { Native.toast("Insufficient balance."); return; }
+  askPin("Confirm payment", `${provider} · ${bouquet[0]} — ₦${fmtN(amt)}`, (pin) => {
+    if (pin !== ME.pin) { Native.toast("Incorrect PIN."); return; }
+    const t = now();
+    const txId = uid("BILLS-TV");
+    ME.balance -= amt;
+    ME.transactions.unshift({ id: txId, type: "sent", amount: amt, description: `${provider} ${bouquet[0]} — Smartcard ${sc}`, date: t.iso, status: "successful" });
+    saveWalletByAccount(ME.accountNumber, ME);
+    ME = loadWalletByAccount(ME.accountNumber);
+    renderHome(); renderRecent(); renderHistory(); renderSavings();
+    showReceipt({ amount: amt, recipient: `Smartcard ${sc}`, product: `${provider} ${bouquet[0]}`, date: t.date, time: t.time, reference: txId });
+    $("bills-cable-smartcard").value = "";
+  });
+});
+
+$("bills-internet-submit").addEventListener("click", () => {
+  const account = $("bills-internet-account").value.trim();
+  const plan = $("bills-internet-plan").value.split("|");
+  const amt = Number(plan[1]);
+  if (!account) { Native.toast("Enter the account / student ID."); return; }
+  if (!amt) { Native.toast("Select a plan."); return; }
+  if (ME.balance < amt) { Native.toast("Insufficient balance."); return; }
+  askPin("Confirm payment", `${plan[0]} — ₦${fmtN(amt)}`, (pin) => {
+    if (pin !== ME.pin) { Native.toast("Incorrect PIN."); return; }
+    const t = now();
+    const txId = uid("BILLS-INT");
+    ME.balance -= amt;
+    ME.transactions.unshift({ id: txId, type: "sent", amount: amt, description: `${plan[0]} — ${account}`, date: t.iso, status: "successful" });
+    saveWalletByAccount(ME.accountNumber, ME);
+    ME = loadWalletByAccount(ME.accountNumber);
+    renderHome(); renderRecent(); renderHistory(); renderSavings();
+    showReceipt({ amount: amt, recipient: account, product: plan[0], date: t.date, time: t.time, reference: txId });
+    $("bills-internet-account").value = "";
+  });
+});
+
+/* ================= add money ================= */
+let addmoneyTab = "bank";
+function setAddmoneyTab(tab) {
+  addmoneyTab = tab;
+  document.querySelectorAll("#addmoney-tabs .segment").forEach((s) => s.classList.toggle("active", s.dataset.addmoneyTab === tab));
+  document.getElementById("addmoney-panel-bank").classList.toggle("hidden", tab !== "bank");
+  document.getElementById("addmoney-panel-card").classList.toggle("hidden", tab !== "card");
 }
+document.querySelectorAll("#addmoney-tabs .segment").forEach((s) => s.addEventListener("click", () => setAddmoneyTab(s.dataset.addmoneyTab)));
+setAddmoneyTab("bank");
 
-$("#btn-add-card").addEventListener("click", () => {
-  const num = $("#card-number").value.replace(/[^0-9]/g, "");
-  const exp = $("#card-exp").value.trim();
-  const cvv = $("#card-cvv").value.trim();
-  if (num.length < 13) return Native.toast("Card number looks invalid (mock check).");
-  if (!/^\d{2}\/\d{2}$/.test(exp)) return Native.toast("Expiry must be MM/YY.");
-  if (!/^\d{3}$/.test(cvv)) return Native.toast("CVV must be 3 digits.");
-  const t = nowParts();
-  const txId = uid("CARD");
-  ME.cards = ME.cards || [];
-  ME.cards.push({ last4: num.slice(-4), exp: exp, brand: num.startsWith("4") ? "Verve" : num.startsWith("5") ? "Mastercard" : "Visa" });
-  ME.transactions.unshift({ id: txId, type: "sent", amount: 0, description: "Card added •••• " + num.slice(-4), date: t.iso, status: "successful" });
-  saveLocalWallet(ME);
-  Native.toast("Card saved (mock — nothing was charged).");
-  renderCards();
-  $("#card-number").value = ""; $("#card-exp").value = ""; $("#card-cvv").value = "";
+$("addmoney-source-verify").addEventListener("click", () => {
+  const acc = digitsOnly($("addmoney-source-account").value);
+  const code = $("addmoney-source-bank").value;
+  const box = $("addmoney-source-verified");
+  if (!acc || acc.length < 10 || !code) {
+    box.classList.remove("hidden");
+    box.textContent = "Enter a 10-digit account and select a bank.";
+    return;
+  }
+  const name = Native.resolveAccountName(acc, code);
+  const bankName = currentBankName(code);
+  box.classList.remove("hidden");
+  box.textContent = name === "unknown" ? `Name unavailable · ${bankName}` : `${name} · ${bankName}`;
+});
+$("addmoney-submit").addEventListener("click", () => {
+  const acc = digitsOnly($("addmoney-source-account").value);
+  const code = $("addmoney-source-bank").value;
+  let amt = Number($("addmoney-amount").value);
+  if (!acc || acc.length < 10 || !code) { Native.toast("Verify your bank account first."); return; }
+  if (!amt || amt <= 0) { Native.toast("Enter an amount."); return; }
+  if ($("addmoney-source-verified").classList.contains("hidden")) { Native.toast("Verify your bank account first."); return; }
+  if (ME.balance + amt < amt) { Native.toast("Insufficient balance for this deposit simulation."); return; }
+  askPin("Confirm deposit", `₦${fmtN(amt)} from bank account`, (pin) => {
+    if (pin !== ME.pin) { Native.toast("Incorrect PIN."); return; }
+    const t = now();
+    const txId = uid("ADD");
+    ME.balance += amt;
+    ME.transactions.unshift({ id: txId, type: "received", amount: amt, description: `Deposited from ${currentBankName(code)} account`, date: t.iso, status: "successful" });
+    saveWalletByAccount(ME.accountNumber, ME);
+    ME = loadWalletByAccount(ME.accountNumber);
+    renderHome(); renderRecent(); renderHistory(); renderSavings();
+    showReceipt({ amount: amt, recipient: ME.name || ME.accountNumber, product: "Bank deposit", date: t.date, time: t.time, reference: txId });
+    $("addmoney-amount").value = "";
+  });
 });
 
-/* ================= security ================= */
-$("#btn-change-pin").addEventListener("click", () => {
-  const oldP = $("#sec-oldpin").value;
-  const p1 = $("#sec-newpin").value;
-  const p2 = $("#sec-newpin2").value;
-  if (oldP !== ME.transactionPin) return Native.toast("Current PIN is wrong.");
-  if (!/^[0-9]{4}$/.test(p1)) return Native.toast("New PIN must be 4 digits.");
-  if (p1 !== p2) return Native.toast("New PINs do not match.");
-  ME.transactionPin = p1;
-  saveLocalWallet(ME);
-  Native.toast("PIN changed successfully.");
-  $("#sec-oldpin").value = ""; $("#sec-newpin").value = ""; $("#sec-newpin2").value = "";
+/* ================= savings ================= */
+function renderSavings() {
+  $("savings-available").textContent = fmtN(ME.balance);
+  const list = $("savings-list");
+  if (!list) return;
+  const items = (ME.transactions || []).filter((tx) => tx.type === "savings");
+  list.innerHTML = items.length ? items.map((tx) => `
+    <li>
+      <div class="tx-icon">📈</div>
+      <div class="tx-body">
+        <div class="tx-title">${esc(tx.description || "Savings")}</div>
+        <div class="tx-sub">${esc((tx.date || "").slice(0, 10))} · ${esc(tx.status || "active")}</div>
+      </div>
+      <div class="tx-amount pos">₦${fmtN(tx.amount)}</div>
+    </li>
+  `).join("") : `<li><p class="empty-msg">No savings yet.</p></li>`;
+  $("savings-empty").classList.toggle("hidden", items.length > 0);
+}
+document.querySelectorAll("#savings-plans .plan").forEach((p) => p.addEventListener("click", () => {
+  document.querySelectorAll("#savings-plans .plan").forEach((x) => x.classList.toggle("active", x === p));
+  $("addmoney-amount").value = "";
+}));
+document.querySelectorAll("#savings-plans .plan").forEach((p) => p.addEventListener("click", () => {
+  // activate only
+  document.querySelectorAll("#savings-plans .plan").forEach((x) => x.classList.toggle("active", x === p));
+}));
+/* savings submit is on profile? no — use a dedicated quick action from home? For simplicity, allow savings via a small form in the savings view. */
+const savingsSubmit = document.createElement("button");
+savingsSubmit.className = "btn primary";
+savingsSubmit.textContent = "Save now";
+savingsSubmit.addEventListener("click", () => {
+  const plan = el(".plan-grid .plan.active", $("savings-plans"));
+  if (!plan) { Native.toast("Pick a savings plan."); return; }
+  const amt = Number(plan.dataset.price);
+  if (amt > ME.balance) { Native.toast("Insufficient balance."); return; }
+  askPin("Confirm savings", `₦${fmtN(amt)} savings plan`, (pin) => {
+    if (pin !== ME.pin) { Native.toast("Incorrect PIN."); return; }
+    const t = now();
+    const txId = uid("SAV");
+    ME.balance -= amt;
+    ME.transactions.unshift({ id: txId, type: "savings", amount: amt, description: plan.dataset.planLabel, date: t.iso, status: "active" });
+    saveWalletByAccount(ME.accountNumber, ME);
+    ME = loadWalletByAccount(ME.accountNumber);
+    renderHome(); renderRecent(); renderHistory(); renderSavings();
+    showReceipt({ amount: amt, recipient: "Savings plan", product: plan.dataset.planLabel, date: t.date, time: t.time, reference: txId });
+  });
 });
-
-$("#bio-toggle").addEventListener("change", (e) => {
-  Native.setBiometric(e.target.checked);
-  Native.toast(e.target.checked ? "Biometric unlock enabled (mock)." : "Biometric unlock disabled.");
-});
+const savingsHead = $("view-invest").querySelector(".section-head:last-of-type") || $("view-invest").querySelector(".section-head");
+if (savingsHead) {
+  const wrapper = savingsHead.parentNode;
+  wrapper.insertBefore(savingsSubmit, savingsHead.nextSibling);
+}
 
 /* ================= profile ================= */
-function fillProfile() {
-  $("#pf-name").value = ME.fullname;
-  $("#pf-phone").value = ME.phone || ME.accountNumber;
-  $("#pf-acc").value = ME.accountNumber;
-  $("#pf-email").value = ME.email || "";
-  $("#pf-bvn").value = ME.bvn || "2219#######";
+function fillProfileForm() {
+  if (!ME) return;
+  $("profile-name").value = ME.name || "";
+  $("profile-phone").value = ME.phone || ME.accountNumber.replace(/^0+/, "");
+  $("profile-account").value = ME.accountNumber;
+  $("profile-email").value = ME.email || "";
 }
-
-$("#btn-save-profile").addEventListener("click", () => {
-  const nm = $("#pf-name").value.trim();
-  if (nm.length < 3) return Native.toast("Name too short.");
-  ME.fullname = nm;
-  ME.email = $("#pf-email").value.trim();
-  saveLocalWallet(ME);
-  renderGreeting();
-  Native.toast("Profile saved.");
-});
-
-$("#btn-avatar").addEventListener("click", () => Native.pickAvatar());
+$("profile-avatar-btn").addEventListener("click", () => Native.pickAvatar());
 window.onAvatarPicked = function () {
   const dataUrl = Native.consumePickedAvatar();
   if (!dataUrl) return;
   ME.avatar = dataUrl;
-  saveLocalWallet(ME);
-  renderGreeting();
-  Native.toast("Avatar updated.");
+  saveWalletByAccount(ME.accountNumber, ME);
+  const img = $("profile-avatar");
+  if (img) img.src = dataUrl;
+  Native.toast("Photo updated.");
 };
-
-/* ================= settings ================= */
-function fillSettings() {
-  const src = Native.paystackKeySource();
-  $("#psk-default-warn").classList.toggle("hidden", src !== "");
-  $("#psk-user-ok").classList.toggle("hidden", src !== "user");
-  $("#psk-input").value = "";
-  $("#psk-hint").textContent = Native.getPaystackKey() ? "Saved key: " + Native.getPaystackKey() : "No custom key saved.";
-  $("#sender-id").textContent = Native.getSenderId();
-  $("#app-version").textContent = Native.getAppVersion();
-  $("#dark-toggle").checked = document.documentElement.getAttribute("data-theme") === "dark";
-}
-
-$("#btn-psk-save").addEventListener("click", () => {
-  const k = $("#psk-input").value.trim();
-  if (!k) return Native.toast("Paste a Paystack secret key first.");
-  Native.setPaystackKey(k);
-  banks = null;
-  fillSettings();
-  Native.toast("Paystack key saved on this device.");
+$("profile-save").addEventListener("click", () => {
+  const name = $("profile-name").value.trim();
+  if (name.length < 2) { Native.toast("Name is too short."); return; }
+  ME.name = name;
+  ME.email = $("profile-email").value.trim();
+  ME.avatarInitials = initials(name);
+  saveWalletByAccount(ME.accountNumber, ME);
+  renderAppShell();
+  Native.toast("Profile saved.");
+});
+$("profile-logout").addEventListener("click", () => {
+  Native.clearSession();
+  ME = null;
+  showScreen(SCREENS.signin);
 });
 
-$("#btn-psk-clear").addEventListener("click", () => {
+/* ================= security ================= */
+$("security-change-pin").addEventListener("click", () => {
+  const oldPin = $("security-old-pin").value;
+  const newPin = $("security-new-pin").value;
+  const newPin2 = $("security-new-pin2").value;
+  if (oldPin !== ME.pin) { Native.toast("Current PIN is incorrect."); return; }
+  if (!/^[0-9]{4}$/.test(newPin)) { Native.toast("New PIN must be 4 digits."); return; }
+  if (newPin !== newPin2) { Native.toast("New PINs do not match."); return; }
+  ME.pin = newPin;
+  saveWalletByAccount(ME.accountNumber, ME);
+  $("security-old-pin").value = "";
+  $("security-new-pin").value = "";
+  $("security-new-pin2").value = "";
+  Native.toast("PIN changed.");
+});
+$("security-biometric").addEventListener("change", (e) => {
+  Native.setBiometric(e.target.checked);
+  Native.toast(e.target.checked ? "Biometric unlock enabled (demo)." : "Biometric unlock disabled.");
+});
+
+/* ================= paystack ================= */
+function fillPaystackForm() {
+  const hint = $("paystack-hint");
+  if (!hint) return;
+  const saved = Native.getPaystackKey();
+  hint.textContent = saved ? `Saved key: ${saved}` : "No custom key saved.";
+  $("paystack-key-input").value = "";
+}
+  const src = Native.paystackKeySource();
+  const srcEl = $("paystack-source");
+  if (srcEl) srcEl.textContent = src === "user" ? "Saved on device" : src === "default" ? "Default key" : "None";
+
+$("paystack-save").addEventListener("click", () => {
+  const k = $("paystack-key-input").value.trim();
+  if (!k) { Native.toast("Paste a Paystack secret key first."); return; }
+  Native.setPaystackKey(k);
+  fillPaystackForm();
+  fillBankSelects();
+  Native.toast("Paystack key saved on this device.");
+});
+$("paystack-clear").addEventListener("click", () => {
   Native.clearPaystackKey();
-  banks = null;
-  fillSettings();
+  fillPaystackForm();
+  fillBankSelects();
   Native.toast("Saved Paystack key cleared.");
 });
 
-$("#btn-logout").addEventListener("click", () => {
-  Native.clearSession();
-  ME = null;
-  showScreen("auth");
+/* ================= bank selects ================= */
+function fillBankSelects() {
+  const banks = parseBanks(Native.getBanks());
+  ["transfer-bank-bank", "addmoney-source-bank"].forEach((id) => {
+    const sel = $(id);
+    if (!sel) return;
+    const current = sel.value;
+    sel.innerHTML = banks.map((b) => `<option value="${esc(b.code)}">${esc(b.name)}</option>`).join("");
+    if (current && banks.some((b) => b.code === current)) sel.value = current;
+  });
+}
+function currentBankName(code) {
+  const banks = parseBanks(Native.getBanks());
+  const b = banks.find((x) => x.code === code);
+  return b ? b.name : code;
+}
+function parseBanks(json) {
+  try { return JSON.parse(json || "[]"); } catch (e) { return []; }
+}
+
+/* ================= PIN modal ================= */
+let pinCallback = null;
+function askPin(title, sub, cb) {
+  $("modal-pin-title").textContent = title || "Confirm PIN";
+  $("modal-pin-sub").textContent = sub || "Enter your PIN to continue.";
+  $("modal-pin-input").value = "";
+  $("modal-pin").classList.remove("hidden");
+  pinCallback = cb;
+}
+$("modal-pin-ok").addEventListener("click", () => {
+  const v = $("modal-pin-input").value;
+  if (!/^[0-9]{4}$/.test(v)) { Native.toast("Enter your 4-digit PIN."); return; }
+  $("modal-pin").classList.add("hidden");
+  const cb = pinCallback; pinCallback = null;
+  if (cb) cb(v);
+});
+$("modal-pin-cancel").addEventListener("click", () => {
+  $("modal-pin").classList.add("hidden");
+  pinCallback = null;
+});
+$("modal-pin-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") $("modal-pin-ok").click();
 });
 
-/* ================= invest (demo) ================= */
-function renderInvest() {
-  const avail = ME.balance;
-  $("#invest-available").textContent = "₦" + N(avail);
-  const invested = (ME.transactions || []).filter((x) => x.type === "invested");
-  $("#invest-list").innerHTML = invested.map((tx) =>
-    '<li><div class="tx-ic">📈</div><div class="tx-main"><p class="tx-title">' + esc(tx.description) +
-    '</p><p class="tx-sub">' + esc((tx.date || "").slice(0, 10)) + " · " + esc(tx.status) +
-    '</p></div><p class="tx-amt pos">₦' + N(tx.amount) + '</p></li>').join("");
-  $("#invest-empty").classList.toggle("hidden", invested.length > 0);
+/* ================= receipt modal ================= */
+function showReceipt(r) {
+  $("receipt-amount").textContent = "₦" + fmtN(r.amount);
+  $("receipt-recipient").textContent = r.recipient || "—";
+  $("receipt-product").textContent = r.product || "—";
+  $("receipt-date").textContent = r.date || "";
+  $("receipt-time").textContent = r.time || "";
+  $("receipt-reference").textContent = r.reference || uid("REC");
+  $("receipt-total").textContent = "₦" + fmtN(r.amount);
+  $("modal-receipt").classList.remove("hidden");
+  Native.haptic && Native.haptic();
 }
-$("#invest-plans").addEventListener("click", (e) => {
-  const b = e.target.closest(".plan");
-  if (!b) return;
-  const amt = Number(b.dataset.price);
-  const label = b.dataset.label;
-  if (!(amt > 0)) return;
-  if (ME.balance < amt) return Native.toast("Insufficient balance.");
-  askPin("Confirm investment", label + " ₦" + N(amt), (pin) => {
-    if (pin !== ME.transactionPin) return Native.toast("Wrong PIN.");
-    const t = nowParts();
-    const txId = uid("INV");
-    ME.balance -= amt;
-    ME.transactions.unshift({ id: txId, type: "invested", amount: amt, description: label + " (demo)", date: t.iso, status: "active" });
-    saveLocalWallet(ME);
-    renderInvest();
-    Native.toast("Investment started (demo).");
+$("receipt-done").addEventListener("click", () => {
+  $("modal-receipt").classList.add("hidden");
+  renderHome();
+});
+
+/* ================= global link wiring ================= */
+document.querySelectorAll("[data-goto]").forEach((el) => {
+  el.addEventListener("click", (e) => {
+    e.preventDefault();
+    const target = el.dataset.goto;
+    if (target === "signin") goToSignin();
+    else if (target === "signup") goToSignup();
+    else if (target === "terms") showScreen(SCREENS.terms);
+    else if (target === "forgot") showScreen(SCREENS.forgot);
+    else if (target === "onboarding-skip") onboardSkip();
   });
 });
 
-/* ================= wire-up ================= */
-document.addEventListener("click", (e) => {
-  const nav = e.target.closest("[data-nav]");
-  if (nav) { e.preventDefault(); showView(nav.dataset.nav); return; }
-  const goto = e.target.closest("[data-goto]");
-  if (goto) { e.preventDefault(); showScreen(goto.dataset.goto); return; }
-  const bs = e.target.closest("[data-bene-send]");
-  if (bs) {
-    showView("send");
-    switchWalletTab("wallet");
-    $("#wallet-dest").value = bs.dataset.beneSend;
-    $("#btn-verify-wallet").click();
-  }
-});
-
-bindPills("airtime-networks", null);
-bindPills("data-networks", null);
-bindPills("airtime-quick", (b) => { $("#airtime-amount").value = b.dataset.amt; });
-bindPlans("data-plans", null);
-
-/* balance hide/show */
-$("#btn-eye").addEventListener("click", () => { hideBal = !hideBal; renderBalance(); });
-
-/* notifications bell */
-$("#btn-bell").addEventListener("click", () => showView("notifs"));
-
-/* theme toggle */
-$("#dark-toggle").addEventListener("change", (e) => applyTheme(e.target.checked ? "dark" : "light"));
-
-/* ================= boot ================= */
-window.addEventListener("DOMContentLoaded", boot);
+/* ================= empty-state styling helper ================= */
+const style = document.createElement("style");
+style.textContent = `
+  .empty-msg { color: var(--ink-soft); font-size: 13px; padding: 8px 0; text-align: center; }
+  .tx-time { font-size: 11px; color: var(--ink-soft); }
+`;
+document.head.appendChild(style);
