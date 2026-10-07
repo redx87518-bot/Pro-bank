@@ -4,7 +4,11 @@
 const $ = (id) => document.getElementById(id);
 const el = (sel, root) => (root || document).querySelector(sel);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({
-  "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': '&quot;',
+  "'": "&#39;",
 })[c]);
 const uid = (p) => (p || "TXN") + "_" + Date.now();
 const fmtN = (n) => Number(n || 0).toLocaleString("en-NG", {
@@ -326,6 +330,7 @@ $("app-greet").textContent = greeting();
   renderSavedCards("addmoney-card-list");
   renderSavedCards("profile-card-list");
   renderSavings();
+  renderFaq();
   fillProfileForm();
   fillPaystackForm();
   fillBankSelects();
@@ -334,6 +339,19 @@ $("app-greet").textContent = greeting();
 }
 
 function renderHome() {
+
+  // home extras
+  const homeStats = $("home-stats");
+  if (homeStats) {
+    const txCount = (ME.transactions || []).length;
+    const sentCount = (ME.transactions || []).filter((x) => x.type === "sent").length;
+    const receivedCount = (ME.transactions || []).filter((x) => x.type === "received").length;
+    homeStats.innerHTML = `
+      <div class="stat-chip"><span class="stat-num">${txCount}</span><span class="stat-label">Transactions</span></div>
+      <div class="stat-chip"><span class="stat-num">${sentCount}</span><span class="stat-label">Sent</span></div>
+      <div class="stat-chip"><span class="stat-num">${receivedCount}</span><span class="stat-label">Received</span></div>
+    `;
+  }
   $("home-balance").textContent = hideBalance ? "₦ ••••••" : "₦" + fmtN(ME.balance);
   $("home-account").textContent = ME.accountNumber;
   $("home-eye-icon").textContent = hideBalance ? "🚫" : "👁";
@@ -1009,3 +1027,82 @@ style.textContent = `
   .tx-time { font-size: 11px; color: var(--ink-soft); }
 `;
 document.head.appendChild(style);
+
+
+  const summary = $("transfer-summary");
+  if (summary && transferPersonTarget) {
+    savingsSummary.classList.remove("hidden");
+    savingsSummary.innerHTML = `
+      <div class="summary-row"><span>Recipient</span><b>${esc(transferPersonTarget.name || transferPersonTarget.account)}</b></div>
+      <div class="summary-row"><span>Channel</span><b>${esc(transferPersonTarget.type === "bank" ? "Bank account" : "OPay wallet")}</b></div>
+    `;
+  } else if (savingsSummary) {
+    savingsSummary.classList.add("hidden");
+  }
+
+
+
+  const savingsSummary = $("savings-summary");
+  if (savingsSummary) {
+    const saved = (ME.transactions || []).filter((x) => x.type === "savings").reduce((a, x) => a + (x.amount || 0), 0);
+    const active = (ME.transactions || []).filter((x) => x.type === "savings" && (x.status || "") === "active").length;
+    savingsSummary.innerHTML = `
+      <div class="summary-row"><span>Total saved</span><b>₦${fmtN(saved)}</b></div>
+      <div class="summary-row"><span>Active plans</span><b>${active}</b></div>
+    `;
+  }
+
+
+
+  const addmoneySummary = $("addmoney-summary");
+  if (addmoneySummary && !$("addmoney-source-verified").classList.contains("hidden")) {
+    savingsSummary.classList.remove("hidden");
+  } else if (savingsSummary) {
+    savingsSummary.classList.add("hidden");
+  }
+
+
+
+function renderFaq() {
+  const list = $("faq-list");
+  if (!list) return;
+  const items = faqItems();
+  if (!items.length) {
+    $("faq-empty").classList.remove("hidden");
+    return;
+  }
+  $("faq-empty").classList.add("hidden");
+  list.innerHTML = items.map((f, i) => `
+    <div class="faq-item" data-faq-index="${i}">
+      <div class="faq-q"><span>${esc(f.q)}</span><span class="chevron">▾</span></div>
+      <div class="faq-a">${esc(f.a)}</div>
+    </div>
+  `).join("");
+  list.querySelectorAll(".faq-item").forEach((item) => {
+    item.addEventListener("click", () => {
+      const wasOpen = item.classList.contains("open");
+      list.querySelectorAll(".faq-item").forEach((x) => x.classList.remove("open"));
+      if (!wasOpen) item.classList.add("open");
+    });
+  });
+}
+const faqItems = () => [
+  { q: "How do I create an account?", a: "Open the app, tap Create account, enter your full name and phone number, set a PIN, then submit. A demo account number is created for you." },
+  { q: "Is my phone number visible to others?", a: "No. Your phone number is used only to create and access your own account in this demo." },
+  { q: "How does transfer work?", a: "Tap Transfer, choose Person, Bank, or Card, select a recipient, enter an amount and optional narration, then confirm your PIN." },
+  { q: "Can I send money to a bank account?", a: "Yes. Choose Bank, select the bank and account number, verify the name, then continue. Bank name lookups use your saved Paystack key if you provided one." },
+  { q: "How do I add money?", a: "Go to Add money, choose Bank transfer or Card, select your source bank and account, verify the name, enter an amount, and deposit." },
+  { q: "Is this real money?", a: "No. This is a demo for educational purposes. All balances, transfers, airtime, data, and bills are simulated." },
+  { q: "How do I reset my PIN?", a: "Use the Forgot PIN link on the sign-in screen. In the live app this sends a reset link to your phone; in this demo it is a placeholder." },
+  { q: "Where is my data stored?", a: "Your session and wallet are stored on this device only. Bank lookup and SMS features use the APIs configured in Settings." },
+];
+
+
+
+function toggleFaq(item) {
+  const list = item.closest(".faq-list") || item.parentElement.parentElement;
+  if (!list) return;
+  list.querySelectorAll(".faq-item").forEach((x) => x.classList.remove("open"));
+  if (!item.classList.contains("open")) item.classList.add("open");
+}
+

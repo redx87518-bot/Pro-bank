@@ -239,6 +239,7 @@
         </button>
       </div>
 
+      <div class="home-stats" id="home-stats"></div>
       <div class="section-head">
         <h2 class="section-title">Recent activity</h2>
         <a href="#" data-nav="history" class="link">See all</a>
@@ -253,6 +254,7 @@
         <button class="segment" data-transfer-tab="bank">Bank</button>
         <button class="segment" data-transfer-tab="card">Card</button>
       </div>
+      <div class="transfer-summary hidden" id="transfer-summary"></div>
       <div class="transfer-panel" id="transfer-panel-person">
         <label class="field-label" for="transfer-person-search">Search or enter account</label>
         <input id="transfer-person-search" class="field" type="text" placeholder="Name, phone, or account number">
@@ -448,6 +450,7 @@
         <button class="segment active" data-addmoney-tab="bank">Bank transfer</button>
         <button class="segment" data-addmoney-tab="card">Card</button>
       </div>
+      <div class="addmoney-summary hidden" id="addmoney-summary"></div>
       <div class="addmoney-panel" id="addmoney-panel-bank">
         <p class="muted small">Simulate a bank transfer into your OPay wallet.</p>
         <label class="field-label" for="addmoney-source-bank">Your bank</label>
@@ -485,7 +488,8 @@
         <button class="plan" data-price="50000" data-plan-label="Growth plan — 30 days"><b>₦50,000</b><span>Growth plan</span></button>
       </div>
       <div class="section-head">
-        <h2 class="section-title">My savings</h2>
+              <div class="savings-summary" id="savings-summary"></div>
+<h2 class="section-title">My savings</h2>
       </div>
       <ul class="tx-list" id="savings-list"></ul>
       <p class="muted small" id="savings-empty">No savings yet.</p>
@@ -498,6 +502,25 @@
       </div>
       <ul class="tx-list" id="history-list"></ul>
       <p class="muted small" id="history-empty">No transactions yet.</p>
+    </section>
+
+<div class="section-head">
+      <h2 class="section-title">Help centre</h2>
+    </div>
+    <div class="faq-list" id="faq-list"></div>
+    <p class="muted small" id="faq-empty">No help articles yet.</p>
+    <template id="faq-item-template">
+      <div class="faq-item">
+        <div class="faq-q"><span class="faq-q-text"></span><span class="chevron">▾</span></div>
+        <div class="faq-a"></div>
+      </div>
+    </template>
+    <section id="view-faq" class="view">
+      <div class="section-head">
+        <h2 class="section-title">Help centre</h2>
+      </div>
+      <div class="faq-list" id="faq-list"></div>
+      <p class="muted small" id="faq-empty">No help articles yet.</p>
     </section>
 
     <!-- PROFILE / MORE -->
