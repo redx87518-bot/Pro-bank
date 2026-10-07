@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>GoldPay</title>
+<title>OPay</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,44 +11,59 @@
 <!-- ===== SPLASH ===== -->
 <div id="screen-splash" class="screen splash active">
   <div class="splash-logo">
-    <div class="coin">₦</div>
-    <h1>GoldPay</h1>
-    <p class="tagline">Banking redefined, in gold.</p>
+    <div class="logo-mark">OPay</div>
+    <p class="slogan">Pay your way.</p>
   </div>
-  <p class="disclaimer">This is a demo app for educational purposes. All balances and transactions are simulated. Not affiliated with any bank or payment provider.</p>
+  <p class="disclaimer">This is a demo app for educational purposes. All balances and transactions are simulated. Not affiliated with OPay or any payment provider.</p>
+</div>
+
+<!-- ===== AUTH: SIGN IN / GUEST ===== -->
+<div id="screen-auth" class="screen auth">
+  <div class="auth-card">
+    <div class="logo-small">OPay</div>
+    <p class="auth-subtitle">Welcome back</p>
+
+    <div class="auth-mode">
+      <label class="opt-row"><input type="radio" name="authMode" value="guest" checked><span>Continue as guest</span><span class="muted">Demo balances, no PIN</span></label>
+      <label class="opt-row"><input type="radio" name="authMode" value="account"><span>Sign in with account</span><span class="muted">Account / phone + PIN</span></label>
+    </div>
+
+    <div id="auth-account-fields" class="auth-fields hidden">
+      <label class="shadow">Account number or phone</label>
+      <input id="auth-identifier" type="text" inputmode="numeric" maxlength="13" placeholder="0198123456789 or 8123456789" autocomplete="username">
+
+      <label>4-digit PIN</label>
+      <input id="auth-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="current-password">
+
+      <button id="btn-signin" class="btn primary">Sign in</button>
+    </div>
+
+    <p class="auth-switch">New here? <a href="#" data-goto="register">Create an OPay account</a></p>
+  </div>
 </div>
 
 <!-- ===== REGISTER ===== -->
 <div id="screen-register" class="screen auth">
   <div class="auth-card">
-    <div class="coin small">₦</div>
-    <h2>Create your GoldPay account</h2>
-    <p class="hint">Your account number is generated from your phone number.</p>
-    <label>Full name</label>
-    <input id="reg-name" type="text" placeholder="e.g. Buhari Abdulgafar" autocomplete="name">
-    <label>Phone number <span class="muted">(without leading 0, e.g. 8123456789)</span></label>
-    <input id="reg-phone" type="tel" inputmode="numeric" maxlength="10" placeholder="8123456789">
-    <label>Set 4-digit PIN</label>
-    <input id="reg-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
-    <label>Confirm PIN</label>
-    <input id="reg-pin2" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
-    <label class="check-row"><input id="reg-terms" type="checkbox"> <span>I understand this is a <b>demo</b> app — no real money moves.</span></label>
-    <button id="btn-register" class="btn gold">Create account</button>
-    <p class="hint">Registered? <a href="#" data-goto="login">Log in</a></p>
-  </div>
-</div>
+    <div class="logo-small">OPay</div>
+    <p class="auth-subtitle">Create an account</p>
+    <p class="hint">Your account number is derived from your phone: <b>019</b> + phone. No physical card required.</p>
 
-<!-- ===== LOGIN ===== -->
-<div id="screen-login" class="screen auth">
-  <div class="auth-card">
-    <div class="coin small">₦</div>
-    <h2>Welcome back</h2>
-    <label>Phone number</label>
-    <input id="login-phone" type="tel" inputmode="numeric" maxlength="13" placeholder="0198123456789">
-    <label>4-digit PIN</label>
-    <input id="login-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
-    <button id="btn-login" class="btn gold">Log in</button>
-    <p class="hint">New here? <a href="#" data-goto="register">Create an account</a></p>
+    <label class="shadow">Full name</label>
+    <input id="reg-name" type="text" placeholder="Buhari Abdulgafar" autocomplete="name">
+
+    <label class="shadow">Phone number</label>
+    <input id="reg-phone" type="tel" inputmode="numeric" maxlength="10" placeholder="8123456789" autocomplete="tel">
+
+    <label class="shadow">Set 4-digit PIN</label>
+    <input id="reg-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="new-password">
+
+    <label class="shadow">Confirm PIN</label>
+    <input id="reg-pin2" type="password" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="new-password">
+
+    <label class="opt-row"><input id="reg-terms" type="checkbox"><span>I understand this is a <b>demo</b> — no real money moves.</span></label>
+    <button id="btn-register" class="btn primary">Create account</button>
+    <p class="auth-switch">Already have an account? <a href="#" data-goto="auth">Sign in</a></p>
   </div>
 </div>
 
@@ -56,7 +71,7 @@
 <div id="screen-app" class="screen">
   <header class="topbar">
     <div class="greet">
-      <img id="avatar-img" class="avatar" src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Crect width='80' height='80' rx='40' fill='%23D4AF37'/%3E%3Ctext x='40' y='52' font-size='36' text-anchor='middle' fill='%23fff' font-family='sans-serif'%3EG%3C/text%3E%3C/svg%3E" alt="">
+      <img id="avatar-img" class="avatar" src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Crect width='80' height='80' rx='40' fill='%231DA542'/%3E%3Ctext x='40' y='52' font-size='36' text-anchor='middle' fill='%23fff' font-family='sans-serif'%3EOP%3C/text%3E%3C/svg%3E" alt="">
       <div>
         <p class="hi" id="greeting">Good morning</p>
         <p class="uname" id="greet-name"></p>
@@ -67,6 +82,7 @@
 
   <!-- views are swapped by script.js inside the shell -->
   <main id="views">
+
     <!-- ===== DASHBOARD ===== -->
     <section id="view-home" class="view">
       <div class="balance-card">
@@ -75,270 +91,335 @@
             <p class="bal-label">Available balance</p>
             <p class="bal-amount" id="bal-amount">₦0.00</p>
           </div>
-          <button class="icon-btn" id="btn-eye" aria-label="Hide balance">👁</button>
+          <button class="pill-square" id="btn-eye" aria-label="Hide balance">👁</button>
         </div>
         <div class="bal-meta">
-          <span>Acc: <b id="bal-acc"></b></span>
+          <span><b class="tiny">ACC</b> <span id="bal-acc"></span></span>
           <span class="chip demo">DEMO</span>
         </div>
-        <p class="bal-disclaimer">Simulated balance — educational demo only.</p>
+        <p class="bal-disclaimer">Simulated balance for demonstration.</p>
       </div>
 
-      <h3 class="sect">Quick actions</h3>
-      <div class="grid6">
-        <button class="qa" data-nav="send"><span class="qa-ic">💸</span>Send Money</button>
-        <button class="qa" data-nav="airtime"><span class="qa-ic">📶</span>Airtime</button>
-        <button class="qa" data-nav="data"><span class="qa-ic">🌐</span>Data Bundle</button>
-        <button class="qa" data-nav="electricity"><span class="qa-ic">⚡</span>Electricity</button>
-        <button class="qa" data-nav="cable"><span class="qa-ic">📺</span>Cable TV</button>
-        <button class="qa" data-nav="internet"><span class="qa-ic">🎓</span>Education</button>
+      <div class="section-header">
+        <h3 class="section-title">Transfer &amp; pay</h3>
+      </div>
+      <div class="grid3">
+        <button class="tile" data-nav="send"><span class="tile-ic">💸</span><span class="tile-label">Send</span></button>
+        <button class="tile" data-nav="airtime"><span class="tile-ic">📶</span><span class="tile-label">Airtime</span></button>
+        <button class="tile" data-nav="data"><span class="tile-ic">🌐</span><span class="tile-label">Data</span></button>
       </div>
 
-      <div class="sect-row"><h3 class="sect">Recent transactions</h3><a href="#" data-nav="history" class="link">View all</a></div>
+      <div class="grid3">
+        <button class="tile" data-nav="bills"><span class="tile-ic">🧾</span><span class="tile-label">Bills &amp; payments</span></button>
+        <button class="tile" data-nav="addmoney"><span class="tile-ic">💵</span><span class="tile-label">Add money</span></button>
+        <button class="tile" data-nav="invest"><span class="tile-ic">📈</span><span class="tile-label">Savings</span></button>
+      </div>
+
+      <div class="section-row">
+        <h3 class="section-title">Recent transactions</h3>
+        <a href="#" data-nav="history" class="link">See all</a>
+      </div>
       <ul id="recent-list" class="tx-list"></ul>
     </section>
 
-    <!-- ===== SEND MONEY ===== -->
+    <!-- ===== SEND ===== -->
     <section id="view-send" class="view">
-      <div class="tabs">
-        <button class="tab active" data-tab="wallet">Mobile Wallet</button>
-        <button class="tab" data-tab="bank">Mobile Bank</button>
-        <button class="tab" data-tab="bene">Beneficiaries</button>
+      <div class="segmented">
+        <button class="seg active" data-tab="wallet">Wallet</button>
+        <button class="seg" data-tab="bank">Bank</button>
+        <button class="seg" data-tab="bene">Favorites</button>
       </div>
 
       <div id="tab-wallet" class="tabpanel">
-        <label>Recipient account / phone / wallet address</label>
-        <input id="wallet-dest" type="text" placeholder="019… / 812… / GP_xxxx">
+        <label class="shadow">Recipient account, phone, or wallet address</label>
+        <input id="wallet-dest" type="text" placeholder="0198123456789 · 8123456789 · GP_xxx">
         <button id="btn-verify-wallet" class="btn ghost">Verify recipient</button>
         <div id="wallet-verified" class="verify-box hidden"></div>
-        <label>Amount (₦)</label>
+        <label class="shadow">Amount (₦)</label>
         <input id="wallet-amount" type="number" inputmode="decimal" placeholder="0.00">
-        <label>Narration</label>
+        <label class="shadow">Narration</label>
         <input id="wallet-narr" type="text" placeholder="What's it for?">
-        <button id="btn-send-wallet" class="btn gold">Send</button>
+        <button id="btn-send-wallet" class="btn primary">Continue</button>
       </div>
 
       <div id="tab-bank" class="tabpanel hidden">
-        <label>Bank</label>
-        <select id="bank-select"><option value="">Loading banks…</option></select>
-        <label>Account number</label>
-        <input id="bank-acc" type="tel" inputmode="numeric" maxlength="10" placeholder="10-digit account">
+        <label class="shadow">Bank</label>
+        <select id="bank-select"><option value="">Select a bank</option></select>
+        <label class="shadow">Account number</label>
+        <input id="bank-acc" type="text" inputmode="numeric" maxlength="10" placeholder="10-digit account">
         <button id="btn-verify-bank" class="btn ghost">Verify account</button>
         <div id="bank-verified" class="verify-box hidden"></div>
-        <label>Amount (₦)</label>
+        <label class="shadow">Amount (₦)</label>
         <input id="bank-amount" type="number" inputmode="decimal" placeholder="0.00">
-        <label>Narration</label>
+        <label class="shadow">Narration</label>
         <input id="bank-narr" type="text" placeholder="What's it for?">
-        <button id="btn-send-bank" class="btn gold">Send</button>
+        <button id="btn-send-bank" class="btn primary">Continue</button>
       </div>
 
       <div id="tab-bene" class="tabpanel hidden">
         <ul id="bene-list" class="tx-list"></ul>
-        <p class="hint" id="bene-empty">Your frequent recipients will appear here.</p>
+        <p class="hint" id="bene-empty">Your favorite recipients will show up here.</p>
       </div>
     </section>
 
     <!-- ===== AIRTIME ===== -->
     <section id="view-airtime" class="view">
-      <h3 class="sect">Buy airtime</h3>
-      <label>Network</label>
+      <h3 class="section-title">Buy airtime</h3>
+      <label class="shadow">Network</label>
       <div class="pill-row" id="airtime-networks">
         <button class="pill active" data-net="MTN">MTN</button>
         <button class="pill" data-net="Glo">Glo</button>
         <button class="pill" data-net="Airtel">Airtel</button>
         <button class="pill" data-net="9mobile">9mobile</button>
       </div>
-      <label>Phone number</label>
+      <label class="shadow">Phone number</label>
       <input id="airtime-phone" type="tel" inputmode="numeric" maxlength="13" placeholder="0198123456789">
-      <label>Amount (₦)</label>
+      <label class="shadow">Amount (₦)</label>
       <input id="airtime-amount" type="number" inputmode="decimal" placeholder="100">
       <div class="pill-row" id="airtime-quick">
         <button class="pill" data-amt="100">₦100</button>
         <button class="pill" data-amt="200">₦200</button>
         <button class="pill" data-amt="500">₦500</button>
-        <button class="pill" data-amt="1000">₦1000</button>
+        <button class="pill" data-amt="1000">₦1,000</button>
       </div>
-      <button id="btn-airtime" class="btn gold">Buy airtime</button>
+      <button id="btn-airtime" class="btn primary">Buy airtime</button>
     </section>
 
     <!-- ===== DATA ===== -->
     <section id="view-data" class="view">
-      <h3 class="sect">Buy data</h3>
-      <label>Network</label>
+      <h3 class="section-title">Buy data</h3>
+      <label class="shadow">Network</label>
       <div class="pill-row" id="data-networks">
         <button class="pill active" data-net="MTN">MTN</button>
         <button class="pill" data-net="Glo">Glo</button>
         <button class="pill" data-net="Airtel">Airtel</button>
         <button class="pill" data-net="9mobile">9mobile</button>
       </div>
-      <label>Plan</label>
+      <label class="shadow">Plan</label>
       <div class="plan-grid" id="data-plans">
-        <button class="plan" data-price="500" data-label="1GB – 30 days"><b>1GB</b><span>₦500</span></button>
+        <button class="plan active" data-price="500" data-label="1GB – 30 days"><b>1GB</b><span>₦500</span></button>
         <button class="plan" data-price="900" data-label="2GB – 30 days"><b>2GB</b><span>₦900</span></button>
-        <button class="plan" data-price="1500" data-label="5GB – 30 days"><b>5GB</b><span>₦1500</span></button>
-        <button class="plan" data-price="2500" data-label="10GB – 30 days"><b>10GB</b><span>₦2500</span></button>
+        <button class="plan" data-price="1500" data-label="5GB – 30 days"><b>5GB</b><span>₦1,500</span></button>
+        <button class="plan" data-price="2500" data-label="10GB – 30 days"><b>10GB</b><span>₦2,500</span></button>
       </div>
-      <label>Phone number</label>
+      <label class="shadow">Phone number</label>
       <input id="data-phone" type="tel" inputmode="numeric" maxlength="13" placeholder="0198123456789">
-      <button id="btn-data" class="btn gold">Buy data</button>
+      <button id="btn-data" class="btn primary">Buy data</button>
     </section>
 
-    <!-- ===== ELECTRICITY ===== -->
-    <section id="view-electricity" class="view">
-      <h3 class="sect">Electricity bill</h3>
-      <label>Distribution company</label>
-      <select id="disco-select">
-        <option value="EKEDC">Eko Electricity (EKEDC)</option>
-        <option value="IKEDC">Ikeja Electric (IKEDC)</option>
-        <option value="AEDC">Abuja Electric (AEDC)</option>
-        <option value="KEDCO">Kano Electric (KEDCO)</option>
-        <option value="PHED">Port Harcourt Electric (PHED)</option>
-      </select>
-      <label>Meter number</label>
-      <input id="meter-no" type="text" inputmode="numeric" placeholder="e.g. 45012345678">
-      <button id="btn-verify-meter" class="btn ghost">Fetch customer</button>
-      <div id="meter-verified" class="verify-box hidden"></div>
-      <label>Amount (₦)</label>
-      <input id="meter-amount" type="number" inputmode="decimal" placeholder="2000">
-      <button id="btn-electricity" class="btn gold">Pay bill</button>
+    <!-- ===== BILLS ===== -->
+    <section id="view-bills" class="view">
+      <h3 class="section-title">Pay bills</h3>
+      <div class="segmented">
+        <button class="seg active" data-tab="water">Water</button>
+        <button class="seg" data-tab="tv">Cable TV</button>
+        <button class="seg" data-tab="internet">Internet</button>
+      </div>
+
+      <div id="tab-water" class="tabpanel">
+        <label class="shadow">Water board</label>
+        <select id="water-board">
+          <option value="LAWMA">Lagos Water (LAWMA)</option>
+          <option value="MAWAN">MAWAN Water</option>
+        </select>
+        <label class="shadow">Meter / customer number</label>
+        <input id="water-id" type="text" placeholder="e.g. 45012345678">
+        <label>Amount (₦)</label>
+        <input id="water-amount" type="number" inputmode="decimal" placeholder="1,000">
+        <button id="btn-water" class="btn primary">Pay</button>
+      </div>
+
+      <div id="tab-tv" class="tabpanel hidden">
+        <label class="shadow">Provider</label>
+        <select id="cable-provider">
+          <option value="DStv">DStv</option>
+          <option value="GOtv">GOtv</option>
+          <option value="Startimes">Startimes</option>
+        </select>
+        <label class="shadow">Smartcard / IUC number</label>
+        <input id="smartcard-no" type="text" inputmode="numeric" placeholder="e.g. 7012345678">
+        <button id="btn-verify-cable" class="btn ghost">Fetch customer</button>
+        <div id="cable-verified" class="verify-box hidden"></div>
+        <label class="shadow">Bouquet</label>
+        <select id="bouquet-select">
+          <option value="Padi|4400">DStv Padi – ₦4,400</option>
+          <option value="Yanga|6000">DStv Yanga – ₦6,000</option>
+          <option value="Compact|11000">DStv Compact – ₦11,000</option>
+          <option value="Smallie|1900">GOtv Smallie – ₦1,900</option>
+          <option value="Jinja|3900">GOtv Jinja – ₦3,900</option>
+          <option value="Nova|1700">Startimes Nova – ₦1,700</option>
+          <option value="Basic|3250">Startimes Basic – ₦3,250</option>
+        </select>
+        <button id="btn-cable" class="btn primary">Pay bill</button>
+      </div>
+
+      <div id="tab-internet" class="tabpanel hidden">
+        <label class="shadow">Account / student ID</label>
+        <input id="edu-id" type="text" placeholder="e.g. GP-EDU-10234">
+        <label class="shadow">Plan</label>
+        <select id="edu-plan">
+          <option value="Router Unlimited|10000">Router Unlimited – ₦10,000</option>
+          <option value="Campus 20GB|3500">Campus 20GB – ₦3,500</option>
+          <option value="Exam Prep Pack|1500">Exam Prep Pack – ₦1,500</option>
+          <option value="JAMB e-Learning|800">JAMB e-Learning – ₦800</option>
+        </select>
+        <button id="btn-internet" class="btn primary">Pay</button>
+      </div>
     </section>
 
-    <!-- ===== CABLE TV ===== -->
-    <section id="view-cable" class="view">
-      <h3 class="sect">Cable TV</h3>
-      <label>Provider</label>
-      <select id="cable-provider">
-        <option value="DStv">DStv</option>
-        <option value="GOtv">GOtv</option>
-        <option value="Startimes">Startimes</option>
-      </select>
-      <label>Smartcard / IUC number</label>
-      <input id="smartcard-no" type="text" inputmode="numeric" placeholder="e.g. 7012345678">
-      <button id="btn-verify-cable" class="btn ghost">Fetch customer</button>
-      <div id="cable-verified" class="verify-box hidden"></div>
-      <label>Bouquet</label>
-      <select id="bouquet-select">
-        <option value="Padi|4400">DStv Padi – ₦4,400</option>
-        <option value="Yanga|6000">DStv Yanga – ₦6,000</option>
-        <option value="Compact|11000">DStv Compact – ₦11,000</option>
-        <option value="Smallie|1900">GOtv Smallie – ₦1,900</option>
-        <option value="Jinja|3900">GOtv Jinja – ₦3,900</option>
-        <option value="Nova|1700">Startimes Nova – ₦1,700</option>
-        <option value="Basic|3250">Startimes Basic – ₦3,250</option>
-      </select>
-      <button id="btn-cable" class="btn gold">Pay bill</button>
+    <!-- ===== ADD MONEY ===== -->
+    <section id="view-addmoney" class="view">
+      <h3 class="section-title">Add money</h3>
+      <div class="segmented">
+        <button class="seg active" data-tab="self">To myself</button>
+        <button class="seg" data-tab="transfer">To another</button>
+      </div>
+      <div id="tab-self" class="tabpanel">
+        <label class="shadow">Destination account</label>
+        <input id="addmoney-dest" type="text" placeholder="0198123456789">
+        <div class="verify-box hidden" id="addmoney-destbox"></div>
+        <label class="shadow">Amount (₦)</label>
+        <input id="addmoney-amount" type="number" inputmode="decimal" placeholder="0.00">
+        <label class="shadow">Source account (simulated)</label>
+        <input id="addmoney-source" type="text" placeholder="e.g. 0190000000000">
+        <button id="btn-addmoney" class="btn primary">Deposit</button>
+      </div>
+      <div id="tab-transfer" class="tabpanel hidden">
+        <p class="hint">Use <b>Send</b> instead. This tab simulates a bank deposit into another OPay account for demonstration.</p>
+        <label class="shadow">Recipient account</label>
+        <input id="addmoney-transfer-to" type="text" placeholder="0198123456789">
+        <label class="shadow">Amount (₦)</label>
+        <input id="addmoney-transfer-amount" type="number" inputmode="decimal" placeholder="0.00">
+        <button id="btn-addmoney-transfer" class="btn primary">Simulate deposit</button>
+      </div>
     </section>
 
-    <!-- ===== INTERNET / EDUCATION ===== -->
-    <section id="view-internet" class="view">
-      <h3 class="sect">Internet / Education</h3>
-      <label>Account / Student ID</label>
-      <input id="edu-id" type="text" placeholder="e.g. GP-EDU-10234">
-      <label>Plan</label>
-      <select id="edu-plan">
-        <option value="Router Unlimited|10000">Router Unlimited – ₦10,000</option>
-        <option value="Campus 20GB|3500">Campus 20GB – ₦3,500</option>
-        <option value="Exam Prep Pack|1500">Exam Prep Pack – ₦1,500</option>
-        <option value="JAMB e-Learning|800">JAMB e-Learning – ₦800</option>
-      </select>
-      <button id="btn-internet" class="btn gold">Pay</button>
+    <!-- ===== INVEST ===== -->
+    <section id="view-invest" class="view">
+      <h3 class="section-title">Savings</h3>
+      <div class="card-blurb">
+        <div>
+          <p class="card-big">₦<span id="invest-available">0.00</span></p>
+          <p class="card-sub">Available to save</p>
+        </div>
+        <p class="hint">Simulated savings dashboard — no real interest applied.</p>
+      </div>
+      <h3 class="section-title">Top up savings</h3>
+      <div class="plan-grid" id="invest-plans">
+        <button class="plan active" data-price="1000" data-label="Safe savings – 30 days"><b>₦1,000</b><span>Safe savings</span></button>
+        <button class="plan" data-price="5000" data-label="Growth plan – 30 days"><b>₦5,000</b><span>Growth plan</span></button>
+        <button class="plan" data-price="10000" data-label="Growth plan – 30 days"><b>₦10,000</b><span>Growth plan</span></button>
+        <button class="plan" data-price="50000" data-label="Growth plan – 30 days"><b>₦50,000</b><span>Growth plan</span></button>
+      </div>
+      <h3 class="section-title">My savings</h3>
+      <ul id="invest-list" class="tx-list"></ul>
+      <p class="hint" id="invest-empty">No active savings yet.</p>
     </section>
 
     <!-- ===== CARDS ===== -->
     <section id="view-cards" class="view">
-      <h3 class="sect">Saved cards</h3>
+      <h3 class="section-title">Saved cards</h3>
       <ul id="card-list" class="card-list"></ul>
-      <p class="hint" id="cards-empty">No cards yet.</p>
-      <h3 class="sect">Add a card (mock)</h3>
-      <label>Card number</label>
+      <p class="hint" id="cards-empty">No cards added yet.</p>
+      <h3 class="section-title">Add card (mock)</h3>
+      <label class="shadow">Card number</label>
       <input id="card-number" type="text" inputmode="numeric" maxlength="19" placeholder="1234 5678 9012 3456">
       <div class="row2">
-        <div><label>Expiry (MM/YY)</label><input id="card-exp" type="text" maxlength="5" placeholder="12/29"></div>
-        <div><label>CVV</label><input id="card-cvv" type="password" inputmode="numeric" maxlength="3" placeholder="123"></div>
+        <div>
+          <label class="shadow">Expiry (MM/YY)</label>
+          <input id="card-exp" type="text" maxlength="5" placeholder="12/29">
+        </div>
+        <div>
+          <label class="shadow">CVV</label>
+          <input id="card-cvv" type="password" inputmode="numeric" maxlength="3" placeholder="123">
+        </div>
       </div>
-      <button id="btn-add-card" class="btn gold">Add card</button>
-      <h3 class="sect">Card transactions</h3>
+      <button id="btn-add-card" class="btn primary">Add card</button>
+      <h3 class="section-title">Card transactions</h3>
       <ul id="card-tx" class="tx-list"></ul>
     </section>
 
     <!-- ===== HISTORY ===== -->
     <section id="view-history" class="view">
-      <h3 class="sect">All transactions</h3>
+      <h3 class="section-title">All transactions</h3>
       <ul id="history-list" class="tx-list"></ul>
       <p class="hint" id="history-empty">No transactions yet.</p>
     </section>
 
     <!-- ===== SECURITY ===== -->
     <section id="view-security" class="view">
-      <h3 class="sect">Security centre</h3>
+      <h3 class="section-title">Security</h3>
       <div class="panel">
-        <label>Current PIN</label>
+        <label class="shadow">Current PIN</label>
         <input id="sec-oldpin" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
-        <label>New PIN</label>
+        <label class="shadow">New PIN</label>
         <input id="sec-newpin" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
-        <label>Confirm new PIN</label>
+        <label class="shadow">Confirm new PIN</label>
         <input id="sec-newpin2" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
-        <button id="btn-change-pin" class="btn gold">Change PIN</button>
+        <button id="btn-change-pin" class="btn primary">Change PIN</button>
       </div>
       <div class="panel row-between">
         <div>
           <p class="panel-title">Biometric unlock</p>
-          <p class="hint">Fingerprint / Face unlock on launch (mock).</p>
+          <p class="hint">Fingerprint / Face unlock on launch (demonstration).</p>
         </div>
         <label class="switch"><input type="checkbox" id="bio-toggle"><span class="slider"></span></label>
       </div>
-      <h3 class="sect">Device management</h3>
+      <h3 class="section-title">Linked devices</h3>
       <ul id="device-list" class="dev-list">
-        <li><span>📱 This device</span><span class="chip ok">Active</span></li>
-        <li><span>💻 GoldPay Web (Lagos)</span><span class="chip">Last: 2d ago</span></li>
-        <li><span>📟 GoldPad 10 (Abuja)</span><span class="chip">Last: 12d ago</span></li>
+        <li><span>📱 OPay device</span><span class="chip ok">Active</span></li>
+        <li><span>💻 OPay Web (Lagos)</span><span class="chip">Last: 2d ago</span></li>
+        <li><span>📟 OPad 10 (Abuja)</span><span class="chip">Last: 12d ago</span></li>
       </ul>
     </section>
 
     <!-- ===== PROFILE ===== -->
     <section id="view-profile" class="view">
       <div class="profile-head">
-        <img id="profile-avatar" class="avatar big" src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Crect width='80' height='80' rx='40' fill='%23D4AF37'/%3E%3Ctext x='40' y='52' font-size='36' text-anchor='middle' fill='%23fff' font-family='sans-serif'%3EG%3C/text%3E%3C/svg%3E" alt="">
-        <button id="btn-avatar" class="btn ghost small">Change photo</button>
+        <img id="profile-avatar" class="avatar big" src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Crect width='80' height='80' rx='40' fill='%231DA542'/%3E%3Ctext x='40' y='52' font-size='36' text-anchor='middle' fill='%23fff' font-family='sans-serif'%3EOP%3C/text%3E%3C/svg%3E" alt="">
+        <button id="btn-avatar" class="btn ghost cap">Change photo</button>
       </div>
       <div class="panel">
-        <label>Full name</label>
+        <label class="shadow">Full name</label>
         <input id="pf-name" type="text">
-        <label>Phone</label>
+        <label class="shadow">Phone</label>
         <input id="pf-phone" type="text" disabled>
-        <label>Account number</label>
+        <label class="shadow">Account number</label>
         <input id="pf-acc" type="text" disabled>
-        <label>Email</label>
+        <label class="shadow">Email</label>
         <input id="pf-email" type="email" placeholder="you@example.com">
-        <label>BVN (mock)</label>
+        <label class="shadow">BVN</label>
         <input id="pf-bvn" type="text" value="2219#######" disabled>
-        <button id="btn-save-profile" class="btn gold">Save changes</button>
+        <button id="btn-save-profile" class="btn primary">Save changes</button>
       </div>
     </section>
 
     <!-- ===== SETTINGS ===== -->
     <section id="view-settings" class="view">
-      <h3 class="sect">Settings</h3>
+      <h3 class="section-title">Settings</h3>
       <div class="panel row-between">
-        <div><p class="panel-title">Dark mode</p><p class="hint">Instant theme switch.</p></div>
+        <div>
+          <p class="panel-title">Dark mode</p>
+          <p class="hint">Switch between light and dark theme.</p>
+        </div>
         <label class="switch"><input type="checkbox" id="dark-toggle"><span class="slider"></span></label>
       </div>
 
       <div class="panel">
         <p class="panel-title">Paystack API key</p>
-        <p class="hint">Used for bank name lookups. Stored on this device only.</p>
+        <p class="hint">Used for bank name lookups. Saved on this device only.</p>
         <input id="psk-input" type="password" placeholder="sk_test_… or sk_live_…">
-        <div class="warn hidden" id="psk-default-warn">Using default Paystack key. For best results, enter your own key.</div>
-        <div class="warn ok hidden" id="psk-user-ok">Using your own Paystack key (saved on device).</div>
+        <div class="warn hidden" id="psk-default-warn">Using the default Paystack key. For best results, enter your own key.</div>
+        <div class="warn ok hidden" id="psk-user-ok">Your Paystack key is saved on this device.</div>
         <div class="row2">
-          <button id="btn-psk-save" class="btn gold">Save</button>
+          <button id="btn-psk-save" class="btn primary">Save</button>
           <button id="btn-psk-clear" class="btn ghost">Clear</button>
         </div>
         <p class="hint" id="psk-hint"></p>
       </div>
 
       <div class="panel row-between">
-        <div><p class="panel-title">Termii Sender ID</p><p class="hint">Used for credit-alert SMS.</p></div>
+        <div><p class="panel-title">Sender ID</p><p class="hint">Used for credit-alert SMS.</p></div>
         <b id="sender-id">—</b>
       </div>
       <div class="panel row-between">
@@ -351,36 +432,40 @@
 
     <!-- ===== NOTIFICATIONS ===== -->
     <section id="view-notifs" class="view">
-      <h3 class="sect">Notifications</h3>
+      <h3 class="section-title">Notifications</h3>
       <ul id="notif-list" class="tx-list"></ul>
       <p class="hint" id="notif-empty">You're all caught up.</p>
     </section>
+
   </main>
 
   <!-- ===== BOTTOM NAV ===== -->
   <nav class="bottomnav">
-    <button class="nav-btn active" data-nav="home"><span>🏠</span>Home</button>
-    <button class="nav-btn" data-nav="history"><span>📜</span>History</button>
-    <button class="nav-btn" data-nav="cards"><span>💳</span>Cards</button>
-    <button class="nav-btn" data-nav="profile"><span>👤</span>Profile</button>
-    <button class="nav-btn" data-nav="settings"><span>⚙️</span>Settings</button>
+    <button class="nav-btn active" data-nav="home"><span>🏠</span><small>Home</small></button>
+    <button class="nav-btn" data-nav="send"><span>💸</span><small>Send</small></button>
+    <button class="nav-btn" data-nav="addmoney"><span>💵</span><small>Add</small></button>
+    <button class="nav-btn" data-nav="bills"><span>🧾</span><small>Bills</small></button>
+    <button class="nav-btn" data-nav="profile"><span>👤</span><small>Profile</small></button>
+    <button class="nav-btn" data-nav="settings"><span>⚙️</span><small>Settings</small></button>
   </nav>
 </div>
 
 <!-- ===== PIN MODAL ===== -->
 <div id="pin-modal" class="modal hidden">
   <div class="modal-card">
-    <h3 id="pin-title">Enter PIN</h3>
-    <p class="hint" id="pin-sub"></p>
+    <div class="modal-head">
+      <h3 id="pin-title">Enter PIN</h3>
+      <button class="icon-x" id="pin-close" aria-label="Close">✕</button>
+    </div>
     <input id="pin-input" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
-    <div class="row2">
-      <button id="pin-cancel" class="btn ghost">Cancel</button>
-      <button id="pin-ok" class="btn gold">Confirm</button>
+    <div class="modal-actions">
+      <button id="pin-cancel" class="btn ghost cap">Cancel</button>
+      <button id="pin-ok" class="btn primary cap">Confirm</button>
     </div>
   </div>
 </div>
 
-<!-- ===== RECEIPT (Opay-style) ===== -->
+<!-- ===== RECEIPT (OPay-style) ===== -->
 <div id="receipt-modal" class="modal hidden">
   <div class="receipt">
     <div class="r-head">
@@ -395,13 +480,13 @@
         <div class="r-row"><span>Date</span><b id="r-date"></b></div>
         <div class="r-row"><span>Time</span><b id="r-time"></b></div>
         <div class="r-row"><span>Transaction ID</span><b id="r-txid"></b></div>
-        <div class="r-row"><span>Channel</span><b id="r-channel">GoldPay Wallet</b></div>
+        <div class="r-row"><span>Channel</span><b id="r-channel">OPay Wallet</b></div>
         <div class="r-row"><span>Fee</span><b>₦0.00</b></div>
         <div class="r-row total"><span>Total</span><b id="r-total"></b></div>
         <div class="r-status">Status: <span class="ok">Successful</span></div>
       </div>
-      <p class="r-foot">Thank you for choosing GoldPay.<br>This receipt is a simulated demo artefact.</p>
-      <button id="r-done" class="btn gold">Done</button>
+      <p class="r-foot">Thank you for using OPay.<br>This receipt is a simulated demo artefact.</p>
+      <button id="r-done" class="btn primary cap">Done</button>
     </div>
   </div>
 </div>

@@ -9,7 +9,6 @@ import android.util.Base64;
 import android.webkit.JavascriptInterface;
 
 import com.goldpay.app.helpers.ApiHelper;
-import com.goldpay.app.helpers.JsonBinHelper;
 import com.goldpay.app.helpers.SharedPrefsHelper;
 import com.goldpay.app.helpers.TermiiHelper;
 
@@ -18,6 +17,9 @@ import org.json.JSONObject;
 /**
  * JavaScript bridge. All HTTP stays native so no key ever reaches JS.
  * Methods are invoked from script.js via GoldPayNative.<method>(...).
+ *
+ * In this OPay-style local-auth build the wallet backend is now on-device:
+ * legacy JsonBin calls are removed so no JSON Bin keys are required.
  */
 public class WebAppInterface {
 
@@ -27,11 +29,12 @@ public class WebAppInterface {
         this.activity = activity;
     }
 
-    // ---------- Storage (JSON Bin) ----------
+    // ---------- Storage (local session only) ----------
 
     @JavascriptInterface
     public String binGet() {
-        return JsonBinHelper.get();
+        // kept for the browser-dev mock compat path in script.js
+        return NativeJsonStub.get();
     }
 
     @JavascriptInterface
@@ -40,8 +43,7 @@ public class WebAppInterface {
         Thread t = new Thread(new Runnable() {
             @Override
             public void run() {
-                String resp = JsonBinHelper.put(body);
-                ok[0] = resp != null;
+                ok[0] = NativeJsonStub.put(body);
             }
         });
         t.start();
@@ -52,29 +54,9 @@ public class WebAppInterface {
         return ok[0];
     }
 
-    /** True when the remote record already has the wallets section. */
     @JavascriptInterface
     public String binProbe() {
-        final String[] out = {""};
-        Thread t = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                String rec = JsonBinHelper.get();
-                if (rec == null) {
-                    out[0] = "unreachable";
-                } else if (JsonBinHelper.hasWallets(rec)) {
-                    out[0] = "wallets";
-                } else {
-                    out[0] = "legacy";
-                }
-            }
-        });
-        t.start();
-        try {
-            t.join(20000);
-        } catch (InterruptedException ignored) {
-        }
-        return out[0];
+        return "wallets";
     }
 
     // ---------- Credit-alert SMS (Termii, credit alerts only) ----------

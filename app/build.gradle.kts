@@ -26,8 +26,6 @@ android {
         buildConfigField("String", "TERMII_BASE_URL", "\"${cfg("TERMII_BASE_URL")}\"")
         buildConfigField("String", "TERMII_API_KEY", "\"${cfg("TERMII_API_KEY")}\"")
         buildConfigField("String", "TERMII_SENDER_ID", "\"${cfg("TERMII_SENDER_ID")}\"")
-        buildConfigField("String", "JSONBIN_MASTER_KEY", "\"${cfg("JSONBIN_MASTER_KEY")}\"")
-        buildConfigField("String", "JSONBIN_BIN_ID", "\"${cfg("JSONBIN_BIN_ID")}\"")
         buildConfigField("String", "PAYSTACK_DEFAULT_SECRET", "\"${cfg("PAYSTACK_DEFAULT_SECRET")}\"")
     }
 

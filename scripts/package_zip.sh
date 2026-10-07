@@ -1,8 +1,8 @@
 #!/bin/sh
-# Packages GoldPay into GoldPay.zip, excluding build outputs, VCS and secret files.
+# Packages the OPay-style demo into OPay.zip, excluding build outputs, VCS and secret files.
 cd "$(dirname "$0")/.." || exit 1
-rm -f GoldPay.zip
-zip -r GoldPay.zip . \
+rm -f OPay.zip
+zip -r OPay.zip . \
   -x "*/build/*" "build/*" ".gradle/*" ".git/*" ".idea/*" \
-     "local.properties" "GoldPay.zip" "*.iml"
-echo "Created GoldPay.zip"
+     "local.properties" "OPay.zip" "*.iml"
+echo "Created OPay.zip"
