@@ -11,15 +11,16 @@ import android.webkit.JavascriptInterface;
 import com.goldpay.app.helpers.ApiHelper;
 import com.goldpay.app.helpers.SharedPrefsHelper;
 import com.goldpay.app.helpers.TermiiHelper;
-
+import com.goldpay.app.helpers.JsonBinHelper;
 import org.json.JSONObject;
 
 /**
  * JavaScript bridge. All HTTP stays native so no key ever reaches JS.
  * Methods are invoked from script.js via GoldPayNative.<method>(...).
  *
- * In this OPay-style local-auth build the wallet backend is now on-device:
- * legacy JsonBin calls are removed so no JSON Bin keys are required.
+ * In this OPay-style local-auth build the wallet backend is now on-device.
+ * JsonBinHelper is kept only so legacy calls still compile — it no longer
+ * requires JSON Bin keys.
  */
 public class WebAppInterface {
 
@@ -33,8 +34,7 @@ public class WebAppInterface {
 
     @JavascriptInterface
     public String binGet() {
-        // kept for the browser-dev mock compat path in script.js
-        return NativeJsonStub.get();
+        return JsonBinHelper.get();
     }
 
     @JavascriptInterface
@@ -43,7 +43,7 @@ public class WebAppInterface {
         Thread t = new Thread(new Runnable() {
             @Override
             public void run() {
-                ok[0] = NativeJsonStub.put(body);
+                ok[0] = JsonBinHelper.put(body) != null;
             }
         });
         t.start();
